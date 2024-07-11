@@ -1,2 +1,2 @@
-print("hello world")
-print("hello world")
+def main():
+    return print("I love this world!")
