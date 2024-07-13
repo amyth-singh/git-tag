@@ -1,0 +1,32 @@
+name: Create Annotated Tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag Name'
+        required: true
+      tag_message:
+        description: 'Tag Message'
+        required: true
+
+jobs:
+  create-tag:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Git
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Create annotated tag
+      run: |
+        git tag -a ${{ github.event.inputs.tag_name }} -m "${{ github.event.inputs.tag_message }}"
+        git push origin --tags
+
+    - name: Push changes to repository
+      run: git push origin main
