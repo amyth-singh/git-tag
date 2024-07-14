@@ -1,2 +1,2 @@
 def main():
-    return print("I love this world!")
+    return print("I love GitTagging!")
