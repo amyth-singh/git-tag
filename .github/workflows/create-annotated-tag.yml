@@ -31,7 +31,7 @@ jobs:
 
     - name: Create annotated tag
       run: |
-        git tag -a ${{ github.event.inputs.tag_name }} -m "${{ github.event.inputs.tag_message }}"
+        git tag -a "dev-${{ github.event.inputs.tag_name }}" -m "${{ github.event.inputs.tag_message }}"
         git push origin --tags
 
     - name: Push changes to repository
