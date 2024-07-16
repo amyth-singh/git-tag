@@ -56,9 +56,10 @@ jobs:
     - name: Create annotated tag
       if: steps.check_unique.outcome == 'success'
       run: |
-        TAG_NAME="${{ github.event.inputs.tag_name }}"
+        TAG_NAME="v${{ github.event.inputs.tag_name }}"
         TAG_MESSAGE="${{ github.event.inputs.tag_message }}"
-        git tag -a "$TAG_NAME" -m "$TAG_MESSAGE"
+        TAG_MESSAGE_LOWER=$(echo "$TAG_MESSAGE" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+        git tag -a "$TAG_NAME" -m "$TAG_MESSAGE_LOWER"
         git push origin "$TAG_NAME"
 
     - name: Push changes to repository
