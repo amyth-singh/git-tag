@@ -14,8 +14,8 @@ on:
         description: 'Choose Environment'
         required: true
         options:
-          - DEV
-          - TEST
+          - dev
+          - test
 
 permissions:
   contents: write
