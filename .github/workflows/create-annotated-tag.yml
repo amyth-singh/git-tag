@@ -47,8 +47,8 @@ jobs:
 
         # Check if tag message exists
         for tag in $(git tag); do
-          if [ "$(git for-each-ref refs/tags/$tag --format='%(contents)')" == "$TAG_MESSAGE" ]; then
-            echo "Error: Tag message '$TAG_MESSAGE' is already in use."
+          if [ "$(git for-each-ref refs/tags/$tag --format='%(contents)')" == "$TAG_MESSAGE_LOWER" ]; then
+            echo "Error: Tag message '$TAG_MESSAGE_LOWER' is already in use."
             exit 1
           fi
         done
