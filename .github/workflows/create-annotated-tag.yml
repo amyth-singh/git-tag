@@ -9,6 +9,13 @@ on:
       tag_message:
         description: 'Tag Message'
         required: true
+      environment:
+        type: choice
+        description: 'Choose Environment'
+        required: true
+        options:
+          - DEV
+          - TEST
 
 permissions:
   contents: write
@@ -31,7 +38,7 @@ jobs:
 
     - name: Create annotated tag
       run: |
-        git tag -a "dev-${{ github.event.inputs.tag_name }}" -m "${{ github.event.inputs.tag_message }}"
+        git tag -a ${{ github.event.inputs.environment }}-${{ github.event.inputs.tag_name }} -m "${{ github.event.inputs.tag_message }}"
         git push origin --tags
 
     - name: Push changes to repository
