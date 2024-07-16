@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag Name'
+        description: 'Add Tag Name'
         required: true
       tag_message:
-        description: 'Tag Message'
+        description: 'Add Tag Message'
         required: true
 
 permissions:
@@ -35,8 +35,9 @@ jobs:
     - name: Check if tag name and message are unique
       id: check_unique
       run: |
-        TAG_NAME="${{ github.event.inputs.tag_name }}"
+        TAG_NAME="v${{ github.event.inputs.tag_name }}"
         TAG_MESSAGE="${{ github.event.inputs.tag_message }}"
+        TAG_MESSAGE_LOWER=$(echo "$TAG_MESSAGE" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
 
         # Check if tag name exists
         if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
