@@ -1,4 +1,4 @@
-name: Create Annotated Tag
+name: auto-tag-production-release
 
 on:
   workflow_dispatch:
