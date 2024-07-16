@@ -36,10 +36,36 @@ jobs:
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
+    - name: Fetch all tags
+      run: git fetch --tags
+
+    - name: Check if tag name and message are unique
+      id: check_unique
+      run: |
+        TAG_NAME="${{ github.event.inputs.environment }}-${{ github.event.inputs.tag_name }}"
+        TAG_MESSAGE="${{ github.event.inputs.tag_message }}"
+
+        if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+          echo "Error: Tag name '$TAG_NAME' already exists."
+          exit 1
+        fi
+
+        if git tag -l | while read -r tag; do
+          if [ "$(git tag -n9 -l "$tag" | awk '{$1=""; print $0}')" == " $TAG_MESSAGE" ]; then
+            echo "Error: Tag message '$TAG_MESSAGE' is already in use."
+            exit 1
+          fi
+        done; then
+          echo "Error: Tag message '$TAG_MESSAGE' is already in use."
+          exit 1
+        fi
+
     - name: Create annotated tag
+      if: steps.check_unique.outcome == 'success'
       run: |
         git tag -a ${{ github.event.inputs.environment }}-${{ github.event.inputs.tag_name }} -m "${{ github.event.inputs.tag_message }}"
         git push origin --tags
 
     - name: Push changes to repository
+      if: steps.check_unique.outcome == 'success'
       run: git push origin main
