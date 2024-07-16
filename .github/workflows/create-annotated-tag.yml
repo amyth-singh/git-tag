@@ -45,26 +45,27 @@ jobs:
         TAG_NAME="${{ github.event.inputs.environment }}-${{ github.event.inputs.tag_name }}"
         TAG_MESSAGE="${{ github.event.inputs.tag_message }}"
 
+        # Check if tag name exists
         if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
           echo "Error: Tag name '$TAG_NAME' already exists."
           exit 1
         fi
 
-        if git tag -l | while read -r tag; do
-          if [ "$(git tag -n9 -l "$tag" | awk '{$1=""; print $0}')" == " $TAG_MESSAGE" ]; then
+        # Check if tag message exists
+        for tag in $(git tag); do
+          if [ "$(git for-each-ref refs/tags/$tag --format='%(contents)')" == "$TAG_MESSAGE" ]; then
             echo "Error: Tag message '$TAG_MESSAGE' is already in use."
             exit 1
           fi
-        done; then
-          echo "Error: Tag message '$TAG_MESSAGE' is already in use."
-          exit 1
-        fi
+        done
 
     - name: Create annotated tag
       if: steps.check_unique.outcome == 'success'
       run: |
-        git tag -a ${{ github.event.inputs.environment }}-${{ github.event.inputs.tag_name }} -m "${{ github.event.inputs.tag_message }}"
-        git push origin --tags
+        TAG_NAME="${{ github.event.inputs.environment }}-${{ github.event.inputs.tag_name }}"
+        TAG_MESSAGE="${{ github.event.inputs.tag_message }}"
+        git tag -a "$TAG_NAME" -m "$TAG_MESSAGE"
+        git push origin "$TAG_NAME"
 
     - name: Push changes to repository
       if: steps.check_unique.outcome == 'success'
