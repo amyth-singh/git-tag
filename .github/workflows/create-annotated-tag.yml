@@ -32,7 +32,7 @@ jobs:
     - name: Fetch all tags
       run: git fetch --tags
 
-    - name: Check if tag name and message are unique
+    - name: Check if tag name is unique
       id: check_unique
       run: |
         TAG_NAME="v${{ github.event.inputs.tag_name }}"
@@ -44,14 +44,6 @@ jobs:
           echo "Error: Tag name '$TAG_NAME' already exists."
           exit 1
         fi
-
-        # Check if tag message exists
-        for tag in $(git tag); do
-          if [ "$(git for-each-ref refs/tags/$tag --format='%(contents)')" == "$TAG_MESSAGE_LOWER" ]; then
-            echo "Error: Tag message '$TAG_MESSAGE_LOWER' is already in use."
-            exit 1
-          fi
-        done
 
     - name: Create annotated tag
       if: steps.check_unique.outcome == 'success'
