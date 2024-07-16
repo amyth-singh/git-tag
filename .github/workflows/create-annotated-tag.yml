@@ -9,13 +9,6 @@ on:
       tag_message:
         description: 'Tag Message'
         required: true
-      environment:
-        type: choice
-        description: 'Choose Environment'
-        required: true
-        options:
-          - dev
-          - test
 
 permissions:
   contents: write
@@ -42,7 +35,7 @@ jobs:
     - name: Check if tag name and message are unique
       id: check_unique
       run: |
-        TAG_NAME="${{ github.event.inputs.environment }}-${{ github.event.inputs.tag_name }}"
+        TAG_NAME="${{ github.event.inputs.tag_name }}"
         TAG_MESSAGE="${{ github.event.inputs.tag_message }}"
 
         # Check if tag name exists
@@ -62,7 +55,7 @@ jobs:
     - name: Create annotated tag
       if: steps.check_unique.outcome == 'success'
       run: |
-        TAG_NAME="${{ github.event.inputs.environment }}-${{ github.event.inputs.tag_name }}"
+        TAG_NAME="${{ github.event.inputs.tag_name }}"
         TAG_MESSAGE="${{ github.event.inputs.tag_message }}"
         git tag -a "$TAG_NAME" -m "$TAG_MESSAGE"
         git push origin "$TAG_NAME"
