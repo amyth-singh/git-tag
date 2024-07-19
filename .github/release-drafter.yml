@@ -29,3 +29,8 @@ template: |
   ## Changes
 
   $CHANGES
+
+  ## New Contributors
+  $CONTRIBUTORS
+  
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/commits/$TAG_NAME
