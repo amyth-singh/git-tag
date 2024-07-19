@@ -1,65 +1,70 @@
-#!/bin/bash
-
-# Get the current branch name
-branch_name=$(git rev-parse --abbrev-ref HEAD)
-
-# Function to increment version
-increment_version() {
-    local version=$1
-    local major=$(echo $version | cut -d. -f1 | sed 's/v//')
-    local minor=$(echo $version | cut -d. -f2)
-    local patch=$(echo $version | cut -d. -f3)
-
-    case $2 in
-        major)
-            major=$((major+1))
-            minor=0
-            patch=0
+name: auto-tag-production-release
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release Type (major/minor/patch)'
+        required: true
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+permissions:
+  contents: write
+  packages: read
+  actions: read
+  id-token: write
+jobs:
+  create-tag:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Ensure running on main branch
+      run: |
+        if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+          echo "This workflow must be run on the main branch."
+          exit 1
+        fi
+    - name: Set up Git
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+    - name: Fetch all tags
+      run: git fetch --tags
+    - name: Generate new version
+      id: generate_version
+      run: |
+        latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        echo "Latest tag: $latest_tag"
+        
+        IFS='.' read -r major minor patch <<< "${latest_tag#v}"
+        
+        case "${{ github.event.inputs.release_type }}" in
+          major)
+            new_version="$((major + 1)).0.0"
             ;;
-        minor)
-            minor=$((minor+1))
-            patch=0
+          minor)
+            new_version="${major}.$((minor + 1)).0"
             ;;
-        patch)
-            patch=$((patch+1))
+          patch)
+            new_version="${major}.${minor}.$((patch + 1))"
             ;;
-    esac
-
-    echo "v$major.$minor.$patch"
-}
-
-# Check if branch name contains "major", "minor", or "patch"
-if [[ $branch_name =~ major|minor|patch ]]; then
-    # Determine which part to increment
-    if [[ $branch_name =~ major ]]; then
-        increment_type="major"
-    elif [[ $branch_name =~ minor ]]; then
-        increment_type="minor"
-    else
-        increment_type="patch"
-    fi
-
-    # Fetch all tags
-    git fetch --tags
-
-    # Get the latest tag
-    latest_tag=$(git describe --tags $(git rev-list --tags --max-count=1))
-
-    # If no tags exist, start with v0.0.0
-    if [ -z "$latest_tag" ]; then
-        latest_tag="v0.0.0"
-    fi
-
-    # Increment the version
-    new_tag=$(increment_version $latest_tag $increment_type)
-
-    echo "New tag will be: $new_tag"
-
-    # Create and push the new tag
-    git tag $new_tag
-    git push origin $new_tag
-
-    echo "New tag $new_tag has been created and pushed."
-else
-    echo "Branch name does not contain 'major', 'minor', or 'patch'. No action taken."
-fi
+          *)
+            echo "Invalid release type"
+            exit 1
+            ;;
+        esac
+        
+        echo "new_version=${new_version}" >> $GITHUB_OUTPUT
+        echo "New version: v${new_version}"
+    - name: Create and push tag
+      run: |
+        new_tag="v${{ steps.generate_version.outputs.new_version }}"
+        git tag -a "$new_tag" -m "Release $new_tag"
+        git push origin "$new_tag"
+    - name: Push changes to repository
+      run: git push origin main
