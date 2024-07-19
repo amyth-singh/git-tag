@@ -1,16 +1,12 @@
 name-template: 'v$RESOLVED_VERSION'
 tag-template: 'v$RESOLVED_VERSION'
 categories:
-  - title: '### Bugs Fixed'
+  - title: 'Bugs Fixed'
     labels:
       - 'bug'
       - 'fix'
       - 'bugfix'
-  - title: '### Terraform and AWS'
-    labels:
-      - 'terraform'
-      - 'aws'
-  - title: '### Features Released'
+  - title: 'Features Released'
     labels:
       - 'feature'
       - 'enhancement'
