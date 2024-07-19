@@ -104,7 +104,7 @@ jobs:
         publish: true
         prerelease: false
         commitish: ${{ github.sha }}
-        changes:
+        changes: |
           bugs: ${{ steps.prep_notes.outputs.bugs }}
           terraform: ${{ steps.prep_notes.outputs.terraform }}
           features: ${{ steps.prep_notes.outputs.features }}
