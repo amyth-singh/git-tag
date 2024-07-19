@@ -66,7 +66,33 @@ jobs:
         new_tag="v${{ steps.generate_version.outputs.new_version }}"
         git tag -a "$new_tag" -m "Release $new_tag"
         git push origin "$new_tag"
-    - name: Generate release notes and create release
+    - name: Generate initial release notes
+      uses: release-drafter/release-drafter@v5
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        config-name: release-drafter.yml
+        version: ${{ steps.generate_version.outputs.new_version }}
+        tag: v${{ steps.generate_version.outputs.new_version }}
+        name: Release v${{ steps.generate_version.outputs.new_version }}
+        publish: false
+      id: release_drafter
+    - name: Prepare release notes
+      id: prep_notes
+      run: |
+        bugs=$(echo '${{ steps.release_drafter.outputs.body }}' | sed -n '/### Bugs Fixed/,/### /p' | sed '1d;$d')
+        terraform=$(echo '${{ steps.release_drafter.outputs.body }}' | sed -n '/### Terraform and AWS/,/### /p' | sed '1d;$d')
+        features=$(echo '${{ steps.release_drafter.outputs.body }}' | sed -n '/### Features Released/,/## /p' | sed '1d;$d')
+        echo "bugs<<EOF" >> $GITHUB_OUTPUT
+        echo "$bugs" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        echo "terraform<<EOF" >> $GITHUB_OUTPUT
+        echo "$terraform" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        echo "features<<EOF" >> $GITHUB_OUTPUT
+        echo "$features" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+    - name: Update and publish release
       uses: release-drafter/release-drafter@v5
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -76,5 +102,11 @@ jobs:
         tag: v${{ steps.generate_version.outputs.new_version }}
         name: Release v${{ steps.generate_version.outputs.new_version }}
         publish: true
+        prerelease: false
+        commitish: ${{ github.sha }}
+        changes:
+          bugs: ${{ steps.prep_notes.outputs.bugs }}
+          terraform: ${{ steps.prep_notes.outputs.terraform }}
+          features: ${{ steps.prep_notes.outputs.features }}
     - name: Push changes to repository
       run: git push origin main
