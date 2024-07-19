@@ -1,19 +1,21 @@
 name-template: 'v$RESOLVED_VERSION'
 tag-template: 'v$RESOLVED_VERSION'
 categories:
-  - title: '🚀 Features'
+  - title: '### Bugs Fixed'
+    labels:
+      - 'bug'
+      - 'fix'
+      - 'bugfix'
+  - title: '### Terraform and AWS'
+    labels:
+      - 'terraform'
+      - 'aws'
+  - title: '### Features Released'
     labels:
       - 'feature'
       - 'enhancement'
-  - title: '🐛 Bug Fixes'
-    labels:
-      - 'fix'
-      - 'bugfix'
-      - 'bug'
-  - title: '🧰 Maintenance'
-    label: 'chore'
-change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
-change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
+change-template: '* $TITLE by @$AUTHOR in $URL'
+change-title-escapes: '\<*_&'
 version-resolver:
   major:
     labels:
@@ -26,10 +28,9 @@ version-resolver:
       - 'patch'
   default: patch
 template: |
-  ## Changes
-
+  ## What's Changed
   $CHANGES
-
+  
   ## New Contributors
   $CONTRIBUTORS
   
