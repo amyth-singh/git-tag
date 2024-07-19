@@ -1,4 +1,4 @@
-name: auto-tag-production-release
+name: version-number-validator
 on:
   workflow_dispatch:
     inputs:
