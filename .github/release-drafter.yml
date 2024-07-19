@@ -14,7 +14,7 @@ categories:
     labels:
       - 'feature'
       - 'enhancement'
-change-template: '* $TITLE by @$AUTHOR in $URL'
+change-template: '* $TITLE (#$NUMBER) by @$AUTHOR'
 change-title-escapes: '\<*_&'
 version-resolver:
   major:
