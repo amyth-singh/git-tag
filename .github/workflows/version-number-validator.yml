@@ -66,23 +66,15 @@ jobs:
         new_tag="v${{ steps.generate_version.outputs.new_version }}"
         git tag -a "$new_tag" -m "Release $new_tag"
         git push origin "$new_tag"
-    - name: Generate release notes
-      id: generate_release_notes
+    - name: Generate release notes and create release
       uses: release-drafter/release-drafter@v5
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         config-name: release-drafter.yml
         version: ${{ steps.generate_version.outputs.new_version }}
-    - name: Create GitHub Release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: v${{ steps.generate_version.outputs.new_version }}
-        release_name: Release v${{ steps.generate_version.outputs.new_version }}
-        body: ${{ steps.generate_release_notes.outputs.body }}
-        draft: false
-        prerelease: false
+        tag: v${{ steps.generate_version.outputs.new_version }}
+        name: Release v${{ steps.generate_version.outputs.new_version }}
+        publish: true
     - name: Push changes to repository
       run: git push origin main
