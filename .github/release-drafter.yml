@@ -6,6 +6,10 @@ categories:
       - 'bug'
       - 'fix'
       - 'bugfix'
+  - title: '### Terraform and AWS'
+    labels:
+      - 'terraform'
+      - 'aws'
   - title: '### Features Released'
     labels:
       - 'feature'
@@ -25,11 +29,7 @@ version-resolver:
   default: patch
 template: |
   ## What's Changed
-  ### Bugs Fixed
-  ${{ changes.bugs }}
-  
-  ### Features Released
-  ${{ changes.features }}
+  $CHANGES
   
   ## New Contributors
   $CONTRIBUTORS
