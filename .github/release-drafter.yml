@@ -6,15 +6,11 @@ categories:
       - 'bug'
       - 'fix'
       - 'bugfix'
-  - title: '### Terraform and AWS'
-    labels:
-      - 'terraform'
-      - 'aws'
   - title: '### Features Released'
     labels:
       - 'feature'
       - 'enhancement'
-change-template: '* $TITLE (#$NUMBER) by @$AUTHOR'
+change-template: '* $TITLE by @$AUTHOR in $URL'
 change-title-escapes: '\<*_&'
 version-resolver:
   major:
@@ -29,9 +25,15 @@ version-resolver:
   default: patch
 template: |
   ## What's Changed
-  $CHANGES
+  ### Bugs Fixed
+  ${{ changes.bugs }}
+  
+  ### Features Released
+  ${{ changes.features }}
   
   ## New Contributors
   $CONTRIBUTORS
   
   **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/commits/$TAG_NAME
+exclude-labels:
+  - 'skip-changelog'
