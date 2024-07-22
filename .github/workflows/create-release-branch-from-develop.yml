@@ -18,7 +18,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -29,28 +28,9 @@ jobs:
       - name: Get current version
         id: get_version
         run: |
-          # Check if there are any existing release branches
-          latest_branch=$(git branch -r | grep 'origin/release-' | sort | tail -n 1 | sed 's/origin\///')
-          
-          if [[ -n "$latest_branch" ]]; then
-            echo "Found latest release branch: $latest_branch"
-            # Extract the version from the latest branch name
-            latest_version=$(echo "$latest_branch" | sed -e 's/release-.*-v//')
-            echo "Latest version: v$latest_version"
-            echo "current_version=v$latest_version" >> $GITHUB_OUTPUT
-          else
-            # No release branches found, use GitHub Releases API
-            current_version=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-            if [[ "$current_version" == "v0.0.0" ]]; then
-              release_version=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
-              if [[ "$release_version" == "null" ]]; then
-                release_version="v0.0.0"
-              fi
-              echo "Using latest release version: $release_version"
-              current_version=$release_version
-            fi
-            echo "current_version=$current_version" >> $GITHUB_OUTPUT
-          fi
+          current_version=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Current version: $current_version"
+          echo "current_version=$current_version" >> $GITHUB_OUTPUT
 
       - name: Calculate new version
         id: calc_version
