@@ -3,31 +3,67 @@ name: develop-to-release
 on:
   workflow_dispatch:
     inputs:
-      source_branch:
-        description: 'Source branch to create new branch from'
+      release_type:
+        description: 'Release type'
         required: true
-        default: 'main'
-      new_branch_name:
-        description: 'Name for the new branch'
-        required: true
+        type: choice
+        options:
+        - major
+        - minor
+        - patch
+        default: 'patch'
 
 jobs:
-  create_branch:
+  create_release_branch:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create new branch
+      - name: Get current version
+        id: get_version
+        run: |
+          current_version=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Current version: $current_version"
+          echo "current_version=$current_version" >> $GITHUB_OUTPUT
+
+      - name: Calculate new version
+        id: calc_version
+        run: |
+          current_version=${{ steps.get_version.outputs.current_version }}
+          release_type=${{ github.event.inputs.release_type }}
+          
+          IFS='.' read -ra version_parts <<< "${current_version#v}"
+          major=${version_parts[0]}
+          minor=${version_parts[1]}
+          patch=${version_parts[2]}
+          
+          case $release_type in
+            major)
+              new_version="$((major + 1)).0.0"
+              ;;
+            minor)
+              new_version="${major}.$((minor + 1)).0"
+              ;;
+            patch)
+              new_version="${major}.${minor}.$((patch + 1))"
+              ;;
+          esac
+          
+          echo "New version: v$new_version"
+          echo "new_version=v$new_version" >> $GITHUB_OUTPUT
+
+      - name: Create and push release branch
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git checkout -b ${{ github.event.inputs.new_branch_name }} origin/${{ github.event.inputs.source_branch }}
-          git push -u origin ${{ github.event.inputs.new_branch_name }}
+          new_branch="release-${{ steps.calc_version.outputs.new_version }}"
+          git checkout -b $new_branch origin/develop
+          git push -u origin $new_branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
