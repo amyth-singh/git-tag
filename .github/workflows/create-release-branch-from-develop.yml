@@ -28,15 +28,18 @@ jobs:
       - name: Get current version
         id: get_version
         run: |
-          # First, try to get the latest release branch
+          # Try to get the latest release branch
           latest_release_branch=$(git branch -r | grep origin/release- | sort -V | tail -n 1)
           if [ -n "$latest_release_branch" ]; then
             current_version=$(echo $latest_release_branch | sed -E 's/.*release-[^-]+-v(.*)/v\1/')
             echo "Using version from latest release branch: $current_version"
           else
-            # If no release branch exists, fall back to the latest tag
-            current_version=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-            echo "No release branch found. Using latest tag: $current_version"
+            # If no release branch exists, get the latest release version
+            current_version=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
+            if [ "$current_version" = "null" ]; then
+              current_version="v0.0.0"
+            fi
+            echo "No release branch found. Using latest release version: $current_version"
           fi
           echo "Current version: $current_version"
           echo "current_version=$current_version" >> $GITHUB_OUTPUT
