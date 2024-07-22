@@ -32,18 +32,68 @@ jobs:
           release_branches=$(git branch -r | grep origin/release- | sort -V)
           
           if [ -n "$release_branches" ]; then
-            # Get the latest branch
-            latest_branch=$(echo "$release_branches" | tail -n1)
-            current_version=$(echo "$latest_branch" | sed -E 's/.*release-[^-]+-v(.*)/\1/')
-            echo "Using version from latest release branch: $current_version"
+            # Get the latest branch for each type
+            latest_major=$(echo "$release_branches" | grep 'release-major-' | tail -n1)
+            latest_minor=$(echo "$release_branches" | grep 'release-minor-' | tail -n1)
+            latest_patch=$(echo "$release_branches" | grep 'release-patch-' | tail -n1)
+            
+            # Determine which branch to use based on release type
+            release_type="${{ github.event.inputs.release_type }}"
+            case $release_type in
+              major)
+                if [ -n "$latest_major" ]; then
+                  current_branch=$latest_major
+                elif [ -n "$latest_minor" ]; then
+                  current_branch=$latest_minor
+                elif [ -n "$latest_patch" ]; then
+                  current_branch=$latest_patch
+                else
+                  current_branch=""
+                fi
+                ;;
+              minor)
+                if [ -n "$latest_major" ]; then
+                  current_branch=$latest_major
+                elif [ -n "$latest_minor" ]; then
+                  current_branch=$latest_minor
+                elif [ -n "$latest_patch" ]; then
+                  current_branch=$latest_patch
+                else
+                  current_branch=""
+                fi
+                ;;
+              patch)
+                if [ -n "$latest_minor" ]; then
+                  current_branch=$latest_minor
+                elif [ -n "$latest_patch" ]; then
+                  current_branch=$latest_patch
+                elif [ -n "$latest_major" ]; then
+                  current_branch=$latest_major
+                else
+                  current_branch=""
+                fi
+                ;;
+            esac
+            
+            if [ -n "$current_branch" ]; then
+              current_version=$(echo "$current_branch" | sed -E 's/.*release-[^-]+-v(.*)/\1/')
+              echo "Using version from branch: $current_branch"
+            else
+              current_version=""
+            fi
           else
-            # If no release branch exists, get the latest release version
+            current_version=""
+          fi
+          
+          if [ -z "$current_version" ]; then
+            # If no suitable branch found, get the latest release version
             current_version=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name | sed 's/^v//')
             if [ "$current_version" = "null" ]; then
               current_version="0.0.0"
             fi
-            echo "No release branch found. Using latest release version: $current_version"
+            echo "No suitable branch found. Using latest release version: $current_version"
           fi
+          
           echo "Current version: $current_version"
           echo "current_version=$current_version" >> $GITHUB_OUTPUT
 
