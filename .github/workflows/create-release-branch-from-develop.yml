@@ -29,42 +29,36 @@ jobs:
       - name: Get current version
         id: get_version
         run: |
-          # Try to get the latest tag from the Git repository
-          current_version=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "Current version: $current_version"
-          
-          # If no tags exist, get the latest release from GitHub API
-          if [[ "$current_version" == "v0.0.0" ]]; then
-            release_version=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
-            if [[ "$release_version" == "null" ]]; then
-              # Default version if no release found
-              release_version="v0.0.0"
-            fi
-            echo "Using latest release version: $release_version"
-            current_version=$release_version
-          fi
-
-          # Find the latest release branch
+          # Check if there are any existing release branches
           latest_branch=$(git branch -r | grep 'origin/release-' | sort | tail -n 1 | sed 's/origin\///')
+          
           if [[ -n "$latest_branch" ]]; then
-            echo "Latest release branch: $latest_branch"
+            echo "Found latest release branch: $latest_branch"
+            # Extract the version from the latest branch name
             latest_version=$(echo "$latest_branch" | sed -e 's/release-.*-v//')
-            echo "latest_version=$latest_version" >> $GITHUB_OUTPUT
+            echo "Latest version: v$latest_version"
+            echo "current_version=v$latest_version" >> $GITHUB_OUTPUT
           else
-            echo "No existing release branches found"
-            echo "latest_version=v0.0.0" >> $GITHUB_OUTPUT
+            # No release branches found, use GitHub Releases API
+            current_version=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+            if [[ "$current_version" == "v0.0.0" ]]; then
+              release_version=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
+              if [[ "$release_version" == "null" ]]; then
+                release_version="v0.0.0"
+              fi
+              echo "Using latest release version: $release_version"
+              current_version=$release_version
+            fi
+            echo "current_version=$current_version" >> $GITHUB_OUTPUT
           fi
-
-          echo "current_version=$current_version" >> $GITHUB_OUTPUT
 
       - name: Calculate new version
         id: calc_version
         run: |
           current_version=${{ steps.get_version.outputs.current_version }}
-          latest_version=${{ steps.get_version.outputs.latest_version }}
           release_type=${{ github.event.inputs.release_type }}
           
-          IFS='.' read -ra version_parts <<< "${latest_version#v}"
+          IFS='.' read -ra version_parts <<< "${current_version#v}"
           major=${version_parts[0]}
           minor=${version_parts[1]}
           patch=${version_parts[2]}
