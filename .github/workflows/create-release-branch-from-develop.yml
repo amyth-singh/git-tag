@@ -1,4 +1,4 @@
-name: develop-to-release
+name: create-release-branch-from-develop
 
 on:
   workflow_dispatch:
