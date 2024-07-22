@@ -25,7 +25,7 @@ jobs:
         id: get_version_from_branch
         run: |
           # Extract branch name
-          branch_name=$(echo "${GITHUB_REF##*/}")
+          branch_name="${GITHUB_REF##*/}"
           echo "Branch name: $branch_name"
           
           # Extract version number from branch name
@@ -34,8 +34,9 @@ jobs:
             echo "Extracted version: $version"
             echo "version=$version" >> $GITHUB_ENV
           else
-            echo "Branch name does not match expected pattern"
-            exit 1
+            echo "Branch name does not match expected pattern. Using default version v0.0.0."
+            version="v0.0.0"
+            echo "version=$version" >> $GITHUB_ENV
           fi
 
       - name: Calculate new version
