@@ -1,4 +1,4 @@
-name: create-branch-dev-to-rel
+name: deploy_branch_release
 
 on:
   workflow_dispatch:
