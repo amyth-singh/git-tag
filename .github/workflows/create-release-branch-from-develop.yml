@@ -25,39 +25,17 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Get latest release version
-        id: get_latest_release
+      - name: Get current version
+        id: get_version
         run: |
           current_version=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "Current version from latest release: $current_version"
-          echo "current_version=$current_version" >> $GITHUB_ENV
-
-      - name: Check if there are existing release branches
-        id: check_existing_branches
-        run: |
-          latest_branch=$(git branch -r | grep 'origin/release-' | sort | tail -n 1 | sed 's/origin\///' || echo "")
-          if [ -z "$latest_branch" ]; then
-            echo "No existing release branches found"
-            echo "use_latest_release=true" >> $GITHUB_ENV
-          else
-            echo "Latest branch found: $latest_branch"
-            echo "use_latest_release=false" >> $GITHUB_ENV
-            echo "latest_branch=$latest_branch" >> $GITHUB_ENV
-          fi
-
-      - name: Get version from latest branch
-        id: get_version_from_branch
-        if: env.use_latest_release == 'false'
-        run: |
-          latest_branch=${{ env.latest_branch }}
-          latest_version=$(echo $latest_branch | sed -E 's/release-[^-]*-([0-9]+\.[0-9]+\.[0-9]+)$/v\1/')
-          echo "Version from latest branch: $latest_version"
-          echo "current_version=$latest_version" >> $GITHUB_ENV
+          echo "Current version: $current_version"
+          echo "current_version=$current_version" >> $GITHUB_OUTPUT
 
       - name: Calculate new version
         id: calc_version
         run: |
-          current_version=${{ env.current_version }}
+          current_version=${{ steps.get_version.outputs.current_version }}
           release_type=${{ github.event.inputs.release_type }}
           
           IFS='.' read -ra version_parts <<< "${current_version#v}"
@@ -78,29 +56,29 @@ jobs:
           esac
           
           echo "New version: v$new_version"
-          echo "new_version=v$new_version" >> $GITHUB_ENV
+          echo "new_version=v$new_version" >> $GITHUB_OUTPUT
 
       - name: Check if branch exists
         id: check_branch
         run: |
           release_type=${{ github.event.inputs.release_type }}
-          new_version="${{ env.new_version }}"
+          new_version="${{ steps.calc_version.outputs.new_version }}"
           new_branch="release-${release_type}-${new_version}"
           if git ls-remote --exit-code --heads origin $new_branch; then
             echo "Branch $new_branch already exists"
-            echo "branch_exists=true" >> $GITHUB_ENV
+            echo "branch_exists=true" >> $GITHUB_OUTPUT
           else
             echo "Branch $new_branch does not exist"
-            echo "branch_exists=false" >> $GITHUB_ENV
+            echo "branch_exists=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Create and push release branch
-        if: env.branch_exists == 'false'
+        if: steps.check_branch.outputs.branch_exists == 'false'
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
           release_type=${{ github.event.inputs.release_type }}
-          new_version="${{ env.new_version }}"
+          new_version="${{ steps.calc_version.outputs.new_version }}"
           new_branch="release-${release_type}-${new_version}"
           git checkout -b $new_branch origin/develop
           git push -u origin $new_branch
@@ -108,9 +86,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Error if branch exists
-        if: env.branch_exists == 'true'
+        if: steps.check_branch.outputs.branch_exists == 'true'
         run: |
           release_type=${{ github.event.inputs.release_type }}
-          new_version="${{ env.new_version }}"
+          new_version="${{ steps.calc_version.outputs.new_version }}"
           echo "Error: Branch release-${release_type}-${new_version} already exists"
           exit 1
