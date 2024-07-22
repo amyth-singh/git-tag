@@ -1,0 +1,94 @@
+name: create-release-branch-from-develop
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        type: choice
+        options:
+        - major
+        - minor
+        - patch
+        default: 'minor'
+
+jobs:
+  create_release_branch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get latest release version
+        id: get_latest_release
+        run: |
+          latest_release=$(curl --silent "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r .tag_name)
+          if [ "$latest_release" == "null" ]; then
+            latest_release="v0.0.0"
+          fi
+          echo "Latest release: $latest_release"
+          echo "latest_release=$latest_release" >> $GITHUB_OUTPUT
+
+      - name: Calculate new version
+        id: calc_version
+        run: |
+          latest_release=${{ steps.get_latest_release.outputs.latest_release }}
+          release_type=${{ github.event.inputs.release_type }}
+          
+          IFS='.' read -ra version_parts <<< "${latest_release#v}"
+          major=${version_parts[0]}
+          minor=${version_parts[1]}
+          patch=${version_parts[2]}
+          
+          case $release_type in
+            major)
+              new_version="$((major + 1)).0.0"
+              ;;
+            minor)
+              new_version="${major}.$((minor + 1)).0"
+              ;;
+            patch)
+              new_version="${major}.${minor}.$((patch + 1))"
+              ;;
+          esac
+          
+          echo "New version: v$new_version"
+          echo "new_version=v$new_version" >> $GITHUB_OUTPUT
+
+      - name: Check if branch exists
+        id: check_branch
+        run: |
+          new_version="${{ steps.calc_version.outputs.new_version }}"
+          new_branch="release-${{ github.event.inputs.release_type }}-${new_version}"
+          if git ls-remote --exit-code --heads origin $new_branch; then
+            echo "Branch $new_branch already exists"
+            echo "branch_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Branch $new_branch does not exist"
+            echo "branch_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create and push release branch
+        if: steps.check_branch.outputs.branch_exists == 'false'
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          new_version="${{ steps.calc_version.outputs.new_version }}"
+          new_branch="release-${{ github.event.inputs.release_type }}-${new_version}"
+          git checkout -b $new_branch origin/develop
+          git push -u origin $new_branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Error if branch exists
+        if: steps.check_branch.outputs.branch_exists == 'true'
+        run: |
+          new_version="${{ steps.calc_version.outputs.new_version }}"
+          echo "Error: Branch release-${{ github.event.inputs.release_type }}-${new_version} already exists"
+          exit 1
