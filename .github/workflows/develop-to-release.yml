@@ -4,116 +4,61 @@ on:
   workflow_dispatch:
     inputs:
       release_type:
-        description: 'Release type'
+        description: 'Type of release (major, minor, patch)'
         required: true
+        default: 'patch'
         type: choice
         options:
-        - major
-        - minor
-        - patch
-        default: 'minor'
+          - major
+          - minor
+          - patch
 
 jobs:
   create_release_branch:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
-      - name: Get current version
-        id: get_version
-        run: |
-          # Get all release branches
-          release_branches=$(git branch -r | grep origin/release- | sort -V)
-          
-          if [ -n "$release_branches" ]; then
-            # Get the latest major branch
-            latest_major=$(echo "$release_branches" | grep 'release-major-' | tail -n1)
-            
-            if [ -n "$latest_major" ]; then
-              # Use the latest major as the base
-              current_version=$(echo "$latest_major" | sed -E 's/.*release-major-v(.*)/\1/')
-              echo "Using version from latest major branch: $current_version"
-            else
-              # If no major branch, get the latest branch
-              latest_branch=$(echo "$release_branches" | tail -n1)
-              current_version=$(echo "$latest_branch" | sed -E 's/.*release-[^-]+-v(.*)/\1/')
-              echo "Using version from latest branch: $current_version"
-            fi
-          else
-            # If no release branch exists, get the latest release version
-            current_version=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name | sed 's/^v//')
-            if [ "$current_version" = "null" ]; then
-              current_version="0.0.0"
-            fi
-            echo "No release branch found. Using latest release version: $current_version"
-          fi
-          
-          echo "Current version: $current_version"
-          echo "current_version=$current_version" >> $GITHUB_OUTPUT
+    - name: Get the latest release tag
+      id: get_latest_tag
+      run: |
+        latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
+        echo "::set-output name=tag::$latest_tag"
 
-      - name: Calculate new version
-        id: calc_version
-        run: |
-          current_version=${{ steps.get_version.outputs.current_version }}
-          release_type=${{ github.event.inputs.release_type }}
-          
-          IFS='.' read -ra version_parts <<< "$current_version"
-          major=${version_parts[0]}
-          minor=${version_parts[1]}
-          patch=${version_parts[2]}
-          
-          case $release_type in
-            major)
-              new_version="$((major + 1)).0.0"
-              ;;
-            minor)
-              new_version="${major}.$((minor + 1)).0"
-              ;;
-            patch)
-              new_version="${major}.${minor}.$((patch + 1))"
-              ;;
-          esac
-          
-          echo "New version: $new_version"
-          echo "new_version=$new_version" >> $GITHUB_OUTPUT
+    - name: Calculate new version
+      id: calculate_version
+      run: |
+        release_type="${{ github.event.inputs.release_type }}"
+        latest_tag="${{ steps.get_latest_tag.outputs.tag }}"
 
-      - name: Check if branch exists
-        id: check_branch
-        run: |
-          release_type=${{ github.event.inputs.release_type }}
-          new_version="${{ steps.calc_version.outputs.new_version }}"
-          new_branch="release-${release_type}-v${new_version}"
-          if git ls-remote --exit-code --heads origin $new_branch; then
-            echo "Branch $new_branch already exists"
-            echo "branch_exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "Branch $new_branch does not exist"
-            echo "branch_exists=false" >> $GITHUB_OUTPUT
-          fi
+        if [ -z "$latest_tag" ]; then
+          latest_tag="0.0.0"
+        fi
 
-      - name: Create and push release branch
-        if: steps.check_branch.outputs.branch_exists == 'false'
-        run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          release_type=${{ github.event.inputs.release_type }}
-          new_version="${{ steps.calc_version.outputs.new_version }}"
-          new_branch="release-${release_type}-v${new_version}"
-          git checkout -b $new_branch origin/develop
-          git push -u origin $new_branch
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        IFS='.' read -r -a version_parts <<< "$latest_tag"
 
-      - name: Error if branch exists
-        if: steps.check_branch.outputs.branch_exists == 'true'
-        run: |
-          release_type=${{ github.event.inputs.release_type }}
-          new_version="${{ steps.calc_version.outputs.new_version }}"
-          echo "Error: Branch release-${release_type}-v${new_version} already exists"
-          exit 1
+        major=${version_parts[0]}
+        minor=${version_parts[1]}
+        patch=${version_parts[2]}
+
+        if [ "$release_type" == "major" ]; then
+          major=$((major + 1))
+          minor=0
+          patch=0
+        elif [ "$release_type" == "minor" ]; then
+          minor=$((minor + 1))
+          patch=0
+        elif [ "$release_type" == "patch" ]; then
+          patch=$((patch + 1))
+        fi
+
+        new_version="$major.$minor.$patch"
+        echo "::set-output name=new_version::$new_version"
+
+    - name: Create new branch
+      run: |
+        new_version="${{ steps.calculate_version.outputs.new_version }}"
+        git checkout -b release-$new_version
+        git push origin release-$new_version
