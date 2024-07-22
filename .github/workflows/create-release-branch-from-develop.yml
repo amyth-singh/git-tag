@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -28,8 +29,21 @@ jobs:
       - name: Get current version
         id: get_version
         run: |
+          # Try to get the latest tag from the Git repository
           current_version=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           echo "Current version: $current_version"
+          
+          # If no tags exist, get the latest release from GitHub API
+          if [[ "$current_version" == "v0.0.0" ]]; then
+            release_version=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
+            if [[ "$release_version" == "null" ]]; then
+              # Default version if no release found
+              release_version="v0.0.0"
+            fi
+            echo "Using latest release version: $release_version"
+            current_version=$release_version
+          fi
+
           echo "current_version=$current_version" >> $GITHUB_OUTPUT
 
       - name: Calculate new version
