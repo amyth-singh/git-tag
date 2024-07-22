@@ -1,4 +1,4 @@
-name: version-number-validator
+name: on_merge_to_main
 
 on:
   workflow_dispatch:
