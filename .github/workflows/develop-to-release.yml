@@ -79,7 +79,7 @@ jobs:
           git config user.email github-actions@github.com
           release_type=${{ github.event.inputs.release_type }}
           new_version="${{ steps.calc_version.outputs.new_version }}"
-          new_branch="release-${release_type}-${new_version#v}"
+          new_branch="release-${release_type}-v${new_version}"
           git checkout -b $new_branch origin/develop
           git push -u origin $new_branch
         env:
