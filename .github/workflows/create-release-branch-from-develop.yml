@@ -44,15 +44,27 @@ jobs:
             current_version=$release_version
           fi
 
+          # Find the latest release branch
+          latest_branch=$(git branch -r | grep 'origin/release-' | sort | tail -n 1 | sed 's/origin\///')
+          if [[ -n "$latest_branch" ]]; then
+            echo "Latest release branch: $latest_branch"
+            latest_version=$(echo "$latest_branch" | sed -e 's/release-.*-v//')
+            echo "latest_version=$latest_version" >> $GITHUB_OUTPUT
+          else
+            echo "No existing release branches found"
+            echo "latest_version=v0.0.0" >> $GITHUB_OUTPUT
+          fi
+
           echo "current_version=$current_version" >> $GITHUB_OUTPUT
 
       - name: Calculate new version
         id: calc_version
         run: |
           current_version=${{ steps.get_version.outputs.current_version }}
+          latest_version=${{ steps.get_version.outputs.latest_version }}
           release_type=${{ github.event.inputs.release_type }}
           
-          IFS='.' read -ra version_parts <<< "${current_version#v}"
+          IFS='.' read -ra version_parts <<< "${latest_version#v}"
           major=${version_parts[0]}
           minor=${version_parts[1]}
           patch=${version_parts[2]}
