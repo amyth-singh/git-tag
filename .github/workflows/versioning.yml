@@ -1,0 +1,75 @@
+name: versioning
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Select the type of version increment'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Get version from branch name
+        id: get_version_from_branch
+        run: |
+          # Extract branch name
+          branch_name=$(echo "${GITHUB_REF##*/}")
+          echo "Branch name: $branch_name"
+          
+          # Extract version number from branch name
+          if [[ $branch_name =~ ^release-[^-]+-(v[0-9]+\.[0-9]+\.[0-9]+) ]]; then
+            version=${BASH_REMATCH[1]}
+            echo "Extracted version: $version"
+            echo "version=$version" >> $GITHUB_ENV
+          else
+            echo "Branch name does not match expected pattern"
+            exit 1
+          fi
+
+      - name: Calculate new version
+        id: calc_version
+        run: |
+          current_version=${{ env.version }}
+          release_type=${{ github.event.inputs.release_type }}
+          
+          # Strip the leading 'v' from the version string
+          version=${current_version#v}
+          IFS='.' read -ra version_parts <<< "$version"
+          major=${version_parts[0]}
+          minor=${version_parts[1]}
+          patch=${version_parts[2]}
+          
+          case $release_type in
+            major)
+              new_version="$((major + 1)).0.0"
+              ;;
+            minor)
+              new_version="${major}.$((minor + 1)).0"
+              ;;
+            patch)
+              new_version="${major}.${minor}.$((patch + 1))"
+              ;;
+            *)
+              echo "Invalid release type: $release_type"
+              exit 1
+              ;;
+          esac
+          
+          echo "New version: v$new_version"
+          echo "new_version=v$new_version" >> $GITHUB_ENV
+
+      - name: Display new version
+        run: |
+          echo "The new version is: ${{ env.new_version }}"
