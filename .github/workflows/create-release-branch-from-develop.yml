@@ -1,4 +1,4 @@
-name: develop-to-release
+name: create-release-branch-from-develop
 
 on:
   workflow_dispatch:
@@ -63,7 +63,7 @@ jobs:
         run: |
           release_type=${{ github.event.inputs.release_type }}
           new_version="${{ steps.calc_version.outputs.new_version }}"
-          new_branch="release-${release_type}-${new_version#v}"
+          new_branch="release-${release_type}-${new_version}"
           if git ls-remote --exit-code --heads origin $new_branch; then
             echo "Branch $new_branch already exists"
             echo "branch_exists=true" >> $GITHUB_OUTPUT
@@ -79,7 +79,7 @@ jobs:
           git config user.email github-actions@github.com
           release_type=${{ github.event.inputs.release_type }}
           new_version="${{ steps.calc_version.outputs.new_version }}"
-          new_branch="release-${release_type}-${new_version#v}"
+          new_branch="release-${release_type}-${new_version}"
           git checkout -b $new_branch origin/develop
           git push -u origin $new_branch
         env:
@@ -90,5 +90,5 @@ jobs:
         run: |
           release_type=${{ github.event.inputs.release_type }}
           new_version="${{ steps.calc_version.outputs.new_version }}"
-          echo "Error: Branch release-${release_type}-${new_version#v} already exists"
+          echo "Error: Branch release-${release_type}-${new_version} already exists"
           exit 1
