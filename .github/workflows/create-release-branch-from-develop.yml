@@ -73,3 +73,10 @@ jobs:
           git checkout -b $branch_name
           git push origin $branch_name
 
+      - name: Create a new release (optional)
+        if: github.event.inputs.increment_type == 'major'
+        run: |
+          new_version="${{ steps.increment_version.outputs.new_version }}"
+          gh release create $new_version -t $new_version -n "Release $new_version"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
