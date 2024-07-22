@@ -25,17 +25,39 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Get current version
-        id: get_version
+      - name: Get latest release version
+        id: get_latest_release
         run: |
           current_version=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "Current version: $current_version"
+          echo "Current version from latest release: $current_version"
           echo "current_version=$current_version" >> $GITHUB_OUTPUT
+
+      - name: Check if there are existing release branches
+        id: check_existing_branches
+        run: |
+          latest_branch=$(git branch -r | grep 'origin/release-' | sort | tail -n 1 | sed 's/origin\///' || echo "")
+          if [ -z "$latest_branch" ]; then
+            echo "No existing release branches found"
+            echo "use_latest_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "Latest branch found: $latest_branch"
+            echo "use_latest_release=false" >> $GITHUB_OUTPUT
+            echo "latest_branch=$latest_branch" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get version from latest branch
+        id: get_version_from_branch
+        if: steps.check_existing_branches.outputs.use_latest_release == 'false'
+        run: |
+          latest_branch=${{ steps.check_existing_branches.outputs.latest_branch }}
+          latest_version=$(echo $latest_branch | sed -E 's/release-[^0-9]*([0-9]+\.[0-9]+\.[0-9]+)$/v\1/')
+          echo "Version from latest branch: $latest_version"
+          echo "current_version=$latest_version" >> $GITHUB_OUTPUT
 
       - name: Calculate new version
         id: calc_version
         run: |
-          current_version=${{ steps.get_version.outputs.current_version }}
+          current_version=${{ steps.get_version_from_branch.outputs.current_version || steps.get_latest_release.outputs.current_version }}
           release_type=${{ github.event.inputs.release_type }}
           
           IFS='.' read -ra version_parts <<< "${current_version#v}"
