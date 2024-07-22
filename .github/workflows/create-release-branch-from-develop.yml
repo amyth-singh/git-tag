@@ -28,10 +28,13 @@ jobs:
       - name: Get current version
         id: get_version
         run: |
-          # Try to get the latest release branch
-          latest_release_branch=$(git branch -r | grep origin/release- | sort -V | tail -n 1)
-          if [ -n "$latest_release_branch" ]; then
-            current_version=$(echo $latest_release_branch | sed -E 's/.*release-[^-]+-v(.*)/v\1/')
+          # Get all release branches
+          release_branches=$(git branch -r | grep origin/release- | sort -V)
+          
+          if [ -n "$release_branches" ]; then
+            # Get the latest branch
+            latest_branch=$(echo "$release_branches" | tail -n1)
+            current_version=$(echo "$latest_branch" | sed -E 's/.*release-[^-]+-v(.*)/v\1/')
             echo "Using version from latest release branch: $current_version"
           else
             # If no release branch exists, get the latest release version
@@ -75,7 +78,7 @@ jobs:
         run: |
           release_type=${{ github.event.inputs.release_type }}
           new_version="${{ steps.calc_version.outputs.new_version }}"
-          new_branch="release-${release_type}-${new_version}"
+          new_branch="release-${release_type}-v${new_version}"
           if git ls-remote --exit-code --heads origin $new_branch; then
             echo "Branch $new_branch already exists"
             echo "branch_exists=true" >> $GITHUB_OUTPUT
@@ -91,7 +94,7 @@ jobs:
           git config user.email github-actions@github.com
           release_type=${{ github.event.inputs.release_type }}
           new_version="${{ steps.calc_version.outputs.new_version }}"
-          new_branch="release-${release_type}-${new_version}"
+          new_branch="release-${release_type}-v${new_version}"
           git checkout -b $new_branch origin/develop
           git push -u origin $new_branch
         env:
@@ -101,6 +104,4 @@ jobs:
         if: steps.check_branch.outputs.branch_exists == 'true'
         run: |
           release_type=${{ github.event.inputs.release_type }}
-          new_version="${{ steps.calc_version.outputs.new_version }}"
-          echo "Error: Branch release-${release_type}-${new_version} already exists"
-          exit 1
+          new_version="${{ steps.calc_version.outputs.new_version
