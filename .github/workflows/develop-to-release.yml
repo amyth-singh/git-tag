@@ -11,7 +11,7 @@ on:
         - major
         - minor
         - patch
-        default: 'patch'
+        default: 'minor'
 
 jobs:
   create_release_branch:
