@@ -1,82 +1,94 @@
-name: create-release-branch-from-develop
+#name: create-release-branch-from-develop
 
 on:
   workflow_dispatch:
     inputs:
-      increment_type:
-        description: 'Type of version increment (major, minor, patch)'
+      release_type:
+        description: 'Release type'
         required: true
-        default: 'patch'
         type: choice
         options:
-          - major
-          - minor
-          - patch
+        - major
+        - minor
+        - patch
+        default: 'minor'
 
 jobs:
-  versioning:
+  create_release_branch:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Git
+      - name: Get current version
+        id: get_version
         run: |
-          git config user.name "${{ github.actor }}"
-          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          current_version=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Current version: $current_version"
+          echo "current_version=$current_version" >> $GITHUB_OUTPUT
 
-      - name: Get the latest version tag
-        id: get_latest_version
+      - name: Calculate new version
+        id: calc_version
         run: |
-          latest_tag=$(git describe --tags $(git rev-list --tags --max-count=1) || echo "v0.0.0")
-          echo "Latest tag: $latest_tag"
-          echo "::set-output name=latest_tag::$latest_tag"
-
-      - name: Increment version
-        id: increment_version
-        run: |
-          latest_tag="${{ steps.get_latest_version.outputs.latest_tag }}"
-          version="${latest_tag#v}"
-          IFS='.' read -r -a parts <<< "$version"
-          major=${parts[0]}
-          minor=${parts[1]}
-          patch=${parts[2]}
-
-          case "${{ github.event.inputs.increment_type }}" in
-              major)
-                  ((major++))
-                  minor=0
-                  patch=0
-                  ;;
-              minor)
-                  ((minor++))
-                  patch=0
-                  ;;
-              patch)
-                  ((patch++))
-                  ;;
-              *)
-                  echo "Invalid increment type: ${{ github.event.inputs.increment_type }}"
-                  exit 1
-                  ;;
+          current_version=${{ steps.get_version.outputs.current_version }}
+          release_type=${{ github.event.inputs.release_type }}
+          
+          IFS='.' read -ra version_parts <<< "${current_version#v}"
+          major=${version_parts[0]}
+          minor=${version_parts[1]}
+          patch=${version_parts[2]}
+          
+          case $release_type in
+            major)
+              new_version="$((major + 1)).0.0"
+              ;;
+            minor)
+              new_version="${major}.$((minor + 1)).0"
+              ;;
+            patch)
+              new_version="${major}.${minor}.$((patch + 1))"
+              ;;
           esac
+          
+          echo "New version: v$new_version"
+          echo "new_version=v$new_version" >> $GITHUB_OUTPUT
 
-          new_version="v$major.$minor.$patch"
-          echo "New version: $new_version"
-          echo "::set-output name=new_version::$new_version"
-
-      - name: Create new branch with the incremented version
+      - name: Check if branch exists
+        id: check_branch
         run: |
-          new_version="${{ steps.increment_version.outputs.new_version }}"
-          branch_name="release-${{ github.event.inputs.increment_type }}-$new_version"
-          git checkout -b $branch_name
-          git push origin $branch_name
+          release_type=${{ github.event.inputs.release_type }}
+          new_version="${{ steps.calc_version.outputs.new_version }}"
+          new_branch="release-${release_type}-${new_version}"
+          if git ls-remote --exit-code --heads origin $new_branch; then
+            echo "Branch $new_branch already exists"
+            echo "branch_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Branch $new_branch does not exist"
+            echo "branch_exists=false" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Create a new release (optional)
-        if: github.event.inputs.increment_type == 'major'
+      - name: Create and push release branch
+        if: steps.check_branch.outputs.branch_exists == 'false'
         run: |
-          new_version="${{ steps.increment_version.outputs.new_version }}"
-          gh release create $new_version -t $new_version -n "Release $new_version"
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          release_type=${{ github.event.inputs.release_type }}
+          new_version="${{ steps.calc_version.outputs.new_version }}"
+          new_branch="release-${release_type}-${new_version}"
+          git checkout -b $new_branch origin/develop
+          git push -u origin $new_branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Error if branch exists
+        if: steps.check_branch.outputs.branch_exists == 'true'
+        run: |
+          release_type=${{ github.event.inputs.release_type }}
+          new_version="${{ steps.calc_version.outputs.new_version }}"
+          echo "Error: Branch release-${release_type}-${new_version} already exists"
+          exit 1
