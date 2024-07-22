@@ -14,11 +14,14 @@ on:
 jobs:
   create_branch:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create new branch
         run: |
@@ -26,3 +29,5 @@ jobs:
           git config user.email github-actions@github.com
           git checkout -b ${{ github.event.inputs.new_branch_name }} origin/${{ github.event.inputs.source_branch }}
           git push -u origin ${{ github.event.inputs.new_branch_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
