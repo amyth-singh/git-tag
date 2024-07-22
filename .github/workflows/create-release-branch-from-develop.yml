@@ -35,13 +35,32 @@ jobs:
           echo "Latest release: $latest_release"
           echo "latest_release=$latest_release" >> $GITHUB_OUTPUT
 
+      - name: Get latest branch version
+        id: get_latest_branch
+        run: |
+          release_type=${{ github.event.inputs.release_type }}
+          prefix="release-${release_type}-"
+          latest_branch=$(git branch -r | grep "$prefix" | sed -E 's/.*release-'${release_type}'-([0-9]+\.[0-9]+\.[0-9]+)$/\1/' | sort -V | tail -n1)
+          if [ -z "$latest_branch" ]; then
+            latest_branch="null"
+          fi
+          echo "Latest branch: $latest_branch"
+          echo "latest_branch=$latest_branch" >> $GITHUB_OUTPUT
+
       - name: Calculate new version
         id: calc_version
         run: |
-          latest_release=${{ steps.get_latest_release.outputs.latest_release }}
           release_type=${{ github.event.inputs.release_type }}
+          latest_release=${{ steps.get_latest_release.outputs.latest_release }}
+          latest_branch=${{ steps.get_latest_branch.outputs.latest_branch }}
           
-          IFS='.' read -ra version_parts <<< "${latest_release#v}"
+          if [ "$latest_branch" != "null" ]; then
+            current_version=$latest_branch
+          else
+            current_version=${latest_release#v}
+          fi
+          
+          IFS='.' read -ra version_parts <<< "$current_version"
           major=${version_parts[0]}
           minor=${version_parts[1]}
           patch=${version_parts[2]}
