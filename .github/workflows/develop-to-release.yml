@@ -34,13 +34,13 @@ jobs:
           if [ -n "$release_branches" ]; then
             # Get the latest branch
             latest_branch=$(echo "$release_branches" | tail -n1)
-            current_version=$(echo "$latest_branch" | sed -E 's/.*release-[^-]+-v(.*)/v\1/')
+            current_version=$(echo "$latest_branch" | sed -E 's/.*release-[^-]+-v(.*)/\1/')
             echo "Using version from latest release branch: $current_version"
           else
             # If no release branch exists, get the latest release version
-            current_version=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
+            current_version=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name | sed 's/^v//')
             if [ "$current_version" = "null" ]; then
-              current_version="v0.0.0"
+              current_version="0.0.0"
             fi
             echo "No release branch found. Using latest release version: $current_version"
           fi
@@ -53,7 +53,7 @@ jobs:
           current_version=${{ steps.get_version.outputs.current_version }}
           release_type=${{ github.event.inputs.release_type }}
           
-          IFS='.' read -ra version_parts <<< "${current_version#v}"
+          IFS='.' read -ra version_parts <<< "$current_version"
           major=${version_parts[0]}
           minor=${version_parts[1]}
           patch=${version_parts[2]}
@@ -70,8 +70,8 @@ jobs:
               ;;
           esac
           
-          echo "New version: v$new_version"
-          echo "new_version=v$new_version" >> $GITHUB_OUTPUT
+          echo "New version: $new_version"
+          echo "new_version=$new_version" >> $GITHUB_OUTPUT
 
       - name: Check if branch exists
         id: check_branch
