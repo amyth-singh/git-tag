@@ -1,7 +1,9 @@
-name: on_merge_to_main
+name: on_merge_to_develop
 
 on:
-  push:
+  pull_request:
+    types:
+      - closed
     branches:
       - develop
 
@@ -12,7 +14,8 @@ permissions:
   id-token: write
 
 jobs:
-  determine-release-type:
+  process_merge:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     outputs:
       release_type: ${{ steps.get_merge_info.outputs.release_type }}
@@ -30,17 +33,12 @@ jobs:
     - name: Get merge source branch and determine release type
       id: get_merge_info
       run: |
-        merge_commit=$(git log -1 --merges)
-        if [ -z "$merge_commit" ]; then
-          echo "This push is not a merge. Exiting."
-          exit 0
-        fi
-        source_branch=$(echo "$merge_commit" | grep -oP "Merge branch '\K[^']+")
+        source_branch="${{ github.event.pull_request.head.ref }}"
         echo "Source branch: $source_branch"
         
-        if [[ $source_branch == *"/feature/"* ]]; then
+        if [[ $source_branch == *"feature/"* ]]; then
           release_type="minor"
-        elif [[ $source_branch == *"/bugfix/"* || $source_branch == *"/hotfix/"* ]]; then
+        elif [[ $source_branch == *"bugfix/"* || $source_branch == *"hotfix/"* ]]; then
           release_type="patch"
         else
           release_type="patch"  # Default to patch if branch type is unclear
@@ -49,8 +47,8 @@ jobs:
         echo "release_type=${release_type}" >> $GITHUB_OUTPUT
         echo "Release type determined: ${release_type}"
 
-  generate-new-version:
-    needs: determine-release-type
+  generate_new_version:
+    needs: process_merge
     runs-on: ubuntu-latest
     outputs:
       new_version: ${{ steps.generate_version.outputs.new_version }}
@@ -68,7 +66,7 @@ jobs:
         
         IFS='.' read -r major minor patch <<< "${latest_tag#v}"
         
-        case "${{ needs.determine-release-type.outputs.release_type }}" in
+        case "${{ needs.process_merge.outputs.release_type }}" in
           major)
             new_version="$((major + 1)).0.0"
             ;;
@@ -87,8 +85,8 @@ jobs:
         echo "new_version=${new_version}" >> $GITHUB_OUTPUT
         echo "New version: v${new_version}"
 
-  create-and-push-tag:
-    needs: generate-new-version
+  create_and_push_tag:
+    needs: generate_new_version
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
@@ -103,12 +101,12 @@ jobs:
 
     - name: Create and push tag
       run: |
-        new_tag="v${{ needs.generate-new-version.outputs.new_version }}"
+        new_tag="v${{ needs.generate_new_version.outputs.new_version }}"
         git tag -a "$new_tag" -m "Release $new_tag"
         git push origin "$new_tag"
 
-  generate-release-notes:
-    needs: generate-new-version
+  generate_release_notes:
+    needs: generate_new_version
     runs-on: ubuntu-latest
     steps:
     - name: Generate release notes and create release
@@ -117,13 +115,13 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         config-name: release-drafter.yml
-        version: ${{ needs.generate-new-version.outputs.new_version }}
-        tag: v${{ needs.generate-new-version.outputs.new_version }}
-        name: Release v${{ needs.generate-new-version.outputs.new_version }}
+        version: ${{ needs.generate_new_version.outputs.new_version }}
+        tag: v${{ needs.generate_new_version.outputs.new_version }}
+        name: Release v${{ needs.generate_new_version.outputs.new_version }}
         publish: true
 
-  push-changes:
-    needs: [create-and-push-tag, generate-release-notes]
+  push_changes:
+    needs: [create_and_push_tag, generate_release_notes]
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
