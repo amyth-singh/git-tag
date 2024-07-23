@@ -1,16 +1,9 @@
 name: on_merge_to_main
 
 on:
-  workflow_dispatch:
-    inputs:
-      release_type:
-        description: 'Release Type (major/minor/patch)'
-        required: true
-        type: choice
-        options:
-          - major
-          - minor
-          - patch
+  push:
+    branches:
+      - develop
 
 permissions:
   contents: write
@@ -27,20 +20,37 @@ jobs:
       with:
         fetch-depth: 0
     
-    - name: Ensure running on main branch
-      run: |
-        if [ "${{ github.ref }}" != "refs/heads/main" ]; then
-          echo "This workflow must be run on the main branch."
-          exit 1
-        fi
-
     - name: Set up Git
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-    - name: Fetch all tags
-      run: git fetch --tags
+    - name: Fetch all tags and branches
+      run: |
+        git fetch --tags
+        git fetch --all
+
+    - name: Get merge source branch and determine release type
+      id: get_merge_info
+      run: |
+        merge_commit=$(git log -1 --merges)
+        if [ -z "$merge_commit" ]; then
+          echo "This push is not a merge. Exiting."
+          exit 0
+        fi
+        source_branch=$(echo "$merge_commit" | grep -oP "Merge branch '\K[^']+")
+        echo "Source branch: $source_branch"
+        
+        if [[ $source_branch == *"/feature/"* ]]; then
+          release_type="minor"
+        elif [[ $source_branch == *"/bugfix/"* || $source_branch == *"/hotfix/"* ]]; then
+          release_type="patch"
+        else
+          release_type="patch"  # Default to patch if branch type is unclear
+        fi
+        
+        echo "release_type=${release_type}" >> $GITHUB_OUTPUT
+        echo "Release type determined: ${release_type}"
 
     - name: Generate new version
       id: generate_version
@@ -50,7 +60,7 @@ jobs:
         
         IFS='.' read -r major minor patch <<< "${latest_tag#v}"
         
-        case "${{ github.event.inputs.release_type }}" in
+        case "${{ steps.get_merge_info.outputs.release_type }}" in
           major)
             new_version="$((major + 1)).0.0"
             ;;
@@ -87,4 +97,4 @@ jobs:
         publish: true
 
     - name: Push changes to repository
-      run: git push origin main
+      run: git push origin develop
