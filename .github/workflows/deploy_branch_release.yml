@@ -36,6 +36,9 @@ jobs:
           git fetch origin
           git checkout ${{ steps.base_branch.outputs.base_branch }}
           git pull origin ${{ steps.base_branch.outputs.base_branch }}
+      - name: Display base branch information
+        run: |
+          echo "Creating ${{ github.event.inputs.release_type }} release branch from ${{ steps.base_branch.outputs.base_branch }} branch"
       - name: Get current version
         id: get_version
         run: |
@@ -90,6 +93,7 @@ jobs:
           new_branch="release-${release_type}-${new_version}"
           git checkout -b $new_branch
           git push -u origin $new_branch
+          echo "Created and pushed new branch: $new_branch based on ${{ steps.base_branch.outputs.base_branch }} branch"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Error if branch exists
