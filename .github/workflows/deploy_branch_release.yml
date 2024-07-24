@@ -2,8 +2,16 @@ name: deploy_branch_release
 on:
   workflow_dispatch:
     inputs:
+      base_branch:
+        description: 'Base branch:'
+        required: true
+        type: choice
+        options:
+        - develop
+        - main
+        default: 'develop'
       release_type:
-        description: 'Release type: '
+        description: 'Release type:'
         required: true
         type: choice
         options:
@@ -23,19 +31,7 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Check base branch
-        run: |
-          release_type="${{ github.event.inputs.release_type }}"
-          if [ "$release_type" = "hotfix" ]; then
-            expected_branch="main"
-          else
-            expected_branch="develop"
-          fi
-          current_branch=$(git rev-parse --abbrev-ref HEAD)
-          if [ "$current_branch" != "$expected_branch" ]; then
-            echo "Error: Must be on '$expected_branch' branch for $release_type. Current branch: $current_branch"
-            exit 1
-          fi
+          ref: ${{ github.event.inputs.base_branch }}
       - name: Check for uncommitted changes
         run: |
           if ! git diff-index --quiet HEAD --; then
@@ -94,12 +90,7 @@ jobs:
           release_type=${{ github.event.inputs.release_type }}
           new_version="${{ steps.calc_version.outputs.new_version }}"
           new_branch="release-${release_type}-${new_version}"
-          if [ "$release_type" = "hotfix" ]; then
-            base_branch="main"
-          else
-            base_branch="develop"
-          fi
-          git checkout -b $new_branch origin/$base_branch
+          git checkout -b $new_branch
           git push -u origin $new_branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
