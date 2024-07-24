@@ -4,6 +4,8 @@ categories:
   - title: 'Bugs Fixed'
     labels:
       - 'bug'
+  - title: 'Hotfixes'
+    labels:
       - 'hotfix'
   - title: 'Features Release'
     labels:
