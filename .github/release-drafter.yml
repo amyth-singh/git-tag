@@ -4,12 +4,14 @@ categories:
   - title: 'Bugs Fixed'
     labels:
       - 'bug'
-      - 'fix'
-      - 'bugfix'
-  - title: 'Features Released'
+      - 'hotfix'
+  - title: 'Features Release'
     labels:
-      - 'feature'
-      - 'enhancement'
+      - 'feature-new'
+      - 'feature-enhancement'
+  - title: 'Major Release'
+    labels:
+      - 'major'
 change-template: '* $TITLE by @$AUTHOR in $URL'
 change-title-escapes: '\<*_&'
 version-resolver:
@@ -22,6 +24,9 @@ version-resolver:
   patch:
     labels:
       - 'patch'
+  hotfix:
+    labels:
+      - 'hotfix'
   default: patch
 template: |
   ## What's Changed
