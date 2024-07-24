@@ -2,14 +2,6 @@ name: deploy_branch_release
 on:
   workflow_dispatch:
     inputs:
-      base_branch:
-        description: 'Base branch:'
-        required: true
-        type: choice
-        options:
-        - develop
-        - main
-        default: 'develop'
       release_type:
         description: 'Release type:'
         required: true
@@ -26,12 +18,20 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Determine base branch
+        id: base_branch
+        run: |
+          if [[ "${{ github.event.inputs.release_type }}" == "hotfix" ]]; then
+            echo "base_branch=main" >> $GITHUB_OUTPUT
+          else
+            echo "base_branch=develop" >> $GITHUB_OUTPUT
+          fi
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ github.event.inputs.base_branch }}
+          ref: ${{ steps.base_branch.outputs.base_branch }}
       - name: Check for uncommitted changes
         run: |
           if ! git diff-index --quiet HEAD --; then
