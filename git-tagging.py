@@ -1,2 +1,2 @@
 def main ():
-    return print("this is a hotfix")
+    return print("hotfix")
