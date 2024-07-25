@@ -94,6 +94,7 @@ jobs:
           fi
       - name: Create and push release branch
         if: steps.check_branch.outputs.branch_exists == 'false'
+        id: create_branch
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
@@ -101,8 +102,16 @@ jobs:
           git checkout -b $new_branch
           git push -u origin $new_branch
           echo "Created and pushed new branch: $new_branch based on ${{ steps.base_branch.outputs.base_branch }} branch"
+          echo "branch_name=$new_branch" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Send Slack Notification
+      #   if: steps.check_branch.outputs.branch_exists == 'false'
+      #   uses: 8398a7/action-slack@v3
+      #   with:
+      #     status: ${{ job.status }}
+      #     text: New branch created: ${{ steps.create_branch.outputs.branch_name }}
+      #     webhook_url: ${{ secrets.SLACK_WEBHOOK }}
       - name: Error if branch exists
         if: steps.check_branch.outputs.branch_exists == 'true'
         run: |
