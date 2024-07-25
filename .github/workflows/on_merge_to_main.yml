@@ -132,3 +132,19 @@ jobs:
 
     - name: Push changes to repository
       run: git push origin main
+
+  # send_slack_notification:
+  #   needs: [generate_new_version, create_and_push_tag, generate_release_notes]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - name: Send Slack Notification
+  #     uses: 8398a7/action-slack@v3
+  #     with:
+  #       status: ${{ job.status }}
+  #       text: |
+  #         New release created: v${{ needs.generate_new_version.outputs.new_version }}
+  #         Release type: ${{ needs.process_merge.outputs.release_type }}
+  #         Branch merged: ${{ github.event.pull_request.head.ref }}
+  #       fields: repo,message,commit,author,action,eventName,ref,workflow
+  #     env:
+  #       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
