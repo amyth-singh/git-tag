@@ -1,3 +1,2 @@
 def main ():
-    return print("release-patch")
-
+    return print("minor-change")
