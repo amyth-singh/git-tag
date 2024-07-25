@@ -1,24 +1,22 @@
 name: on_merge_to_main
-
 on:
   pull_request:
     types:
       - closed
     branches:
       - main
-
 permissions:
   contents: write
   packages: read
   actions: read
   id-token: write
-
 jobs:
   process_merge:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     outputs:
       release_type: ${{ steps.get_merge_info.outputs.release_type }}
+      version: ${{ steps.get_merge_info.outputs.version }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
@@ -29,23 +27,31 @@ jobs:
       run: |
         git fetch --tags
         git fetch --all
-
     - name: Get merge source branch and determine release type
       id: get_merge_info
       run: |
         source_branch="${{ github.event.pull_request.head.ref }}"
         echo "Source branch: $source_branch"
         
-        if [[ $source_branch == *"feature/"* ]]; then
+        if [[ $source_branch == release-major-v* ]]; then
+          release_type="major"
+          version=${source_branch#release-major-v}
+        elif [[ $source_branch == release-minor-v* ]]; then
           release_type="minor"
-        elif [[ $source_branch == *"bugfix/"* || $source_branch == *"hotfix/"* ]]; then
+          version=${source_branch#release-minor-v}
+        elif [[ $source_branch == release-patch-v* || $source_branch == hotfix-v* ]]; then
           release_type="patch"
+          version=${source_branch#release-patch-v}
+          version=${version#hotfix-v}
         else
           release_type="patch"  # Default to patch if branch type is unclear
+          version=""
         fi
         
         echo "release_type=${release_type}" >> $GITHUB_OUTPUT
+        echo "version=${version}" >> $GITHUB_OUTPUT
         echo "Release type determined: ${release_type}"
+        echo "Version from branch: ${version}"
 
   generate_new_version:
     needs: process_merge
@@ -57,30 +63,36 @@ jobs:
       uses: actions/checkout@v3
       with:
         fetch-depth: 0
-
     - name: Generate new version
       id: generate_version
       run: |
-        latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-        echo "Latest tag: $latest_tag"
+        branch_version="${{ needs.process_merge.outputs.version }}"
+        release_type="${{ needs.process_merge.outputs.release_type }}"
         
-        IFS='.' read -r major minor patch <<< "${latest_tag#v}"
-        
-        case "${{ needs.process_merge.outputs.release_type }}" in
-          major)
-            new_version="$((major + 1)).0.0"
-            ;;
-          minor)
-            new_version="${major}.$((minor + 1)).0"
-            ;;
-          patch)
-            new_version="${major}.${minor}.$((patch + 1))"
-            ;;
-          *)
-            echo "Invalid release type"
-            exit 1
-            ;;
-        esac
+        if [ -n "$branch_version" ]; then
+          new_version="$branch_version"
+        else
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $latest_tag"
+          
+          IFS='.' read -r major minor patch <<< "${latest_tag#v}"
+          
+          case "$release_type" in
+            major)
+              new_version="$((major + 1)).0.0"
+              ;;
+            minor)
+              new_version="${major}.$((minor + 1)).0"
+              ;;
+            patch)
+              new_version="${major}.${minor}.$((patch + 1))"
+              ;;
+            *)
+              echo "Invalid release type"
+              exit 1
+              ;;
+          esac
+        fi
         
         echo "new_version=${new_version}" >> $GITHUB_OUTPUT
         echo "New version: v${new_version}"
@@ -93,12 +105,10 @@ jobs:
       uses: actions/checkout@v3
       with:
         fetch-depth: 0
-
     - name: Set up Git
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
     - name: Create and push tag
       run: |
         new_tag="v${{ needs.generate_new_version.outputs.new_version }}"
@@ -128,6 +138,5 @@ jobs:
       uses: actions/checkout@v3
       with:
         fetch-depth: 0
-
     - name: Push changes to repository
       run: git push origin main
