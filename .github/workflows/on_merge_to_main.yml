@@ -39,10 +39,12 @@ jobs:
         elif [[ $source_branch == release-minor-v* ]]; then
           release_type="minor"
           version=${source_branch#release-minor-v}
-        elif [[ $source_branch == release-patch-v* || $source_branch == hotfix-v* ]]; then
+        elif [[ $source_branch == release-patch-v* ]]; then
           release_type="patch"
           version=${source_branch#release-patch-v}
-          version=${version#hotfix-v}
+        elif [[ $source_branch == *-hotfix-v* ]]; then
+          release_type="hotfix"
+          version=${source_branch#*-hotfix-v}
         else
           release_type="patch"  # Default to patch if branch type is unclear
           version=""
@@ -71,6 +73,7 @@ jobs:
         
         if [ -n "$branch_version" ]; then
           new_version="$branch_version"
+          echo "Using version from branch: $new_version"
         else
           latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           echo "Latest tag: $latest_tag"
@@ -84,7 +87,7 @@ jobs:
             minor)
               new_version="${major}.$((minor + 1)).0"
               ;;
-            patch)
+            patch|hotfix)
               new_version="${major}.${minor}.$((patch + 1))"
               ;;
             *)
@@ -92,10 +95,11 @@ jobs:
               exit 1
               ;;
           esac
+          echo "Generated new version: $new_version"
         fi
         
         echo "new_version=${new_version}" >> $GITHUB_OUTPUT
-        echo "New version: v${new_version}"
+        echo "Final new version: v${new_version}"
 
   create_and_push_tag:
     needs: generate_new_version
@@ -112,8 +116,14 @@ jobs:
     - name: Create and push tag
       run: |
         new_tag="v${{ needs.generate_new_version.outputs.new_version }}"
-        git tag -a "$new_tag" -m "Release $new_tag"
-        git push origin "$new_tag"
+        if git rev-parse "$new_tag" >/dev/null 2>&1; then
+          echo "Tag $new_tag already exists. This may indicate a workflow issue or duplicate release."
+          exit 1
+        else
+          git tag -a "$new_tag" -m "Release $new_tag"
+          git push origin "$new_tag"
+          echo "Created and pushed tag $new_tag"
+        fi
 
   generate_release_notes:
     needs: generate_new_version
