@@ -1,2 +1,2 @@
 def main ():
-    return print("I've made a hotfix")
+    return print("made some major release on this branch")
