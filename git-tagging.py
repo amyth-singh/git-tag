@@ -1,2 +1,2 @@
 def main ():
-    return print("develop->main")
+    return print("v1.0.0->main")
