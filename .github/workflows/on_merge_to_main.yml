@@ -12,7 +12,7 @@ permissions:
   id-token: write
 jobs:
   process_merge:
-    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release')
+    if: github.event.pull_request.merged == true && (contains(github.event.pull_request.head.ref, 'major') || contains(github.event.pull_request.head.ref, 'minor') || contains(github.event.pull_request.head.ref, 'patch') || contains(github.event.pull_request.head.ref, 'hotfix'))
     runs-on: ubuntu-latest
     outputs:
       release_type: ${{ steps.get_merge_info.outputs.release_type }}
@@ -33,27 +33,23 @@ jobs:
         source_branch="${{ github.event.pull_request.head.ref }}"
         echo "Source branch: $source_branch"
         
-        if [[ $source_branch == release-major-v* ]]; then
+        if [[ $source_branch == *major* ]]; then
           release_type="major"
-          version=${source_branch#release-major-v}
-        elif [[ $source_branch == release-minor-v* ]]; then
+        elif [[ $source_branch == *minor* ]]; then
           release_type="minor"
-          version=${source_branch#release-minor-v}
-        elif [[ $source_branch == release-patch-v* ]]; then
+        elif [[ $source_branch == *patch* || $source_branch == *hotfix* ]]; then
           release_type="patch"
-          version=${source_branch#release-patch-v}
-        elif [[ $source_branch == *-hotfix-v* ]]; then
-          release_type="patch"
-          version=${source_branch#*-hotfix-v}
         else
           release_type="patch"
-          version=""
         fi
+        
+        version=$(echo $source_branch | grep -oP 'v\K[0-9]+\.[0-9]+\.[0-9]+' || echo "")
         
         echo "release_type=${release_type}" >> $GITHUB_OUTPUT
         echo "version=${version}" >> $GITHUB_OUTPUT
         echo "Release type determined: ${release_type}"
         echo "Version from branch: ${version}"
+
   create_and_push_tag:
     needs: process_merge
     runs-on: ubuntu-latest
@@ -83,6 +79,7 @@ jobs:
           git push origin "$new_tag"
           echo "Created and pushed tag $new_tag"
         fi
+
   generate_release_notes:
     needs: process_merge
     runs-on: ubuntu-latest
@@ -97,6 +94,7 @@ jobs:
         tag: v${{ needs.process_merge.outputs.version }}
         name: Release v${{ needs.process_merge.outputs.version }}
         publish: true
+
   push_changes:
     needs: [create_and_push_tag, generate_release_notes]
     runs-on: ubuntu-latest
