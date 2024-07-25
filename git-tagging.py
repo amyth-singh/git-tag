@@ -1,2 +1,2 @@
 def main ():
-    return print("making some major version changes")
+    return print("this is a minor change")
