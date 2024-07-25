@@ -12,7 +12,7 @@ permissions:
   id-token: write
 jobs:
   process_merge:
-    if: github.event.pull_request.merged == true
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release')
     runs-on: ubuntu-latest
     outputs:
       release_type: ${{ steps.get_merge_info.outputs.release_type }}
@@ -54,7 +54,6 @@ jobs:
         echo "version=${version}" >> $GITHUB_OUTPUT
         echo "Release type determined: ${release_type}"
         echo "Version from branch: ${version}"
-
   create_and_push_tag:
     needs: process_merge
     runs-on: ubuntu-latest
@@ -84,7 +83,6 @@ jobs:
           git push origin "$new_tag"
           echo "Created and pushed tag $new_tag"
         fi
-
   generate_release_notes:
     needs: process_merge
     runs-on: ubuntu-latest
@@ -99,7 +97,6 @@ jobs:
         tag: v${{ needs.process_merge.outputs.version }}
         name: Release v${{ needs.process_merge.outputs.version }}
         publish: true
-
   push_changes:
     needs: [create_and_push_tag, generate_release_notes]
     runs-on: ubuntu-latest
