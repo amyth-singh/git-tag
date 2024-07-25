@@ -1,2 +1,2 @@
 def main ():
-    return print("minor-change")
+    return print("major version change")
