@@ -43,10 +43,10 @@ jobs:
           release_type="patch"
           version=${source_branch#release-patch-v}
         elif [[ $source_branch == *-hotfix-v* ]]; then
-          release_type="hotfix"
+          release_type="patch"
           version=${source_branch#*-hotfix-v}
         else
-          release_type="patch"  # Default to patch if branch type is unclear
+          release_type="patch"
           version=""
         fi
         
@@ -55,54 +55,8 @@ jobs:
         echo "Release type determined: ${release_type}"
         echo "Version from branch: ${version}"
 
-  generate_new_version:
-    needs: process_merge
-    runs-on: ubuntu-latest
-    outputs:
-      new_version: ${{ steps.generate_version.outputs.new_version }}
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-    - name: Generate new version
-      id: generate_version
-      run: |
-        branch_version="${{ needs.process_merge.outputs.version }}"
-        release_type="${{ needs.process_merge.outputs.release_type }}"
-        
-        if [ -n "$branch_version" ]; then
-          new_version="$branch_version"
-          echo "Using version from branch: $new_version"
-        else
-          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "Latest tag: $latest_tag"
-          
-          IFS='.' read -r major minor patch <<< "${latest_tag#v}"
-          
-          case "$release_type" in
-            major)
-              new_version="$((major + 1)).0.0"
-              ;;
-            minor)
-              new_version="${major}.$((minor + 1)).0"
-              ;;
-            patch|hotfix)
-              new_version="${major}.${minor}.$((patch + 1))"
-              ;;
-            *)
-              echo "Invalid release type"
-              exit 1
-              ;;
-          esac
-          echo "Generated new version: $new_version"
-        fi
-        
-        echo "new_version=${new_version}" >> $GITHUB_OUTPUT
-        echo "Final new version: v${new_version}"
-
   create_and_push_tag:
-    needs: generate_new_version
+    needs: process_merge
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
@@ -115,10 +69,16 @@ jobs:
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
     - name: Create and push tag
       run: |
-        new_tag="v${{ needs.generate_new_version.outputs.new_version }}"
+        version="${{ needs.process_merge.outputs.version }}"
+        if [ -z "$version" ]; then
+          echo "No version specified in the branch name. Skipping tag creation."
+          exit 0
+        fi
+        
+        new_tag="v${version}"
         if git rev-parse "$new_tag" >/dev/null 2>&1; then
-          echo "Tag $new_tag already exists. This may indicate a workflow issue or duplicate release."
-          exit 1
+          echo "Tag $new_tag already exists. Skipping tag creation."
+          exit 0
         else
           git tag -a "$new_tag" -m "Release $new_tag"
           git push origin "$new_tag"
@@ -126,7 +86,7 @@ jobs:
         fi
 
   generate_release_notes:
-    needs: generate_new_version
+    needs: process_merge
     runs-on: ubuntu-latest
     steps:
     - name: Generate release notes and create release
@@ -135,9 +95,9 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         config-name: release-drafter.yml
-        version: ${{ needs.generate_new_version.outputs.new_version }}
-        tag: v${{ needs.generate_new_version.outputs.new_version }}
-        name: Release v${{ needs.generate_new_version.outputs.new_version }}
+        version: ${{ needs.process_merge.outputs.version }}
+        tag: v${{ needs.process_merge.outputs.version }}
+        name: Release v${{ needs.process_merge.outputs.version }}
         publish: true
 
   push_changes:
