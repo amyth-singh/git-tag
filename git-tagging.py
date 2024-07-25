@@ -1,2 +1,2 @@
 def main ():
-    return print("hotfix-change")
+    return print("release-patch")
