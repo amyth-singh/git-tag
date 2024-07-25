@@ -1,5 +1,4 @@
 name: on_merge_to_main
-run-name: Release ${{ github.event.pull_request.title }}
 
 on:
   pull_request:
