@@ -12,4 +12,5 @@ This workflow is designed to create a 'release-*' branch from the 'develop' bran
 #### on_merge_to_main.yml
 This workflow will automatically create a tag, a release version, release notes based on pull request labels, access the release-drafter.yml template, perform validation and checks and finally release to production. 
 
-## Note : make sure to complete an entire deployment lifecycle before creating a new tag. (e.g. new vx.x.x cannot be created unless previous vx.x.x is completed deployed and a release is present)
+## Note : make sure to deploy and release one branch at a time to maintain consistency
+(e.g. if you want to create a hotfix and there is a minor branch already that is being worked on, please deploy the minor branch so the release exists before moving on the creating the hotfix, every branch should be released and deployed to production before the next branch is created)
