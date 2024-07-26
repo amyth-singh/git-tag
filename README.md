@@ -22,7 +22,7 @@ This workflow will automatically create a tag, a release version, release notes 
 ### Make sure to deploy and release one branch at a time to maintain consistency
 (e.g. if you want to create a hotfix and there is a minor branch already that is being worked on, please deploy the minor branch so the release exists before moving on the creating the hotfix, every branch should be released and deployed to production before the next branch is created)
 
-<img width="277" alt="Screenshot 2024-07-26 at 12 04 37 PM" src="https://github.com/user-attachments/assets/c553195d-6727-4cbd-8811-a3f598be81c7">
+<img width="277" alt="Screenshot 2024-07-26 at 12 04 37 PM" src="https://github.com/user-attachments/assets/c553195d-6727-4cbd-8811-a3f598be81c7"> <br></br>
 <img width="277" alt="Screenshot 2024-07-26 at 12 05 02 PM" src="https://github.com/user-attachments/assets/dfd96d61-fd43-44a3-811f-2d35f7e3328e">
 
 
