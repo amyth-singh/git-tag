@@ -8,6 +8,9 @@ This file is a template file that is referenced into 'on_merge_to_main.yml' to c
 
 #### deploy-branch-release.yml
 This workflow is designed to create a 'release-*' branch from the 'develop' branch when options (_major, minor and patch_) are chosen, and create a '*-hotfix-*' branch from 'main' when (_hotfix_) is chosen from the workflow_dispatch drop down. There are validation and checks that are present in the workflow to maintain consistency and quality (e.g. only pull requests from the release and hotfix branch can be merged into main, validates current tag version etc...). Please go through the code to get a better understanding!
+Note : When you (_hotfix_) is chosen from the dropdown, the new branch is created from (_main_), this will not be refelected in the workflow drop down as GitHub does not have dynamic branch display when working with workflow_dispath.
+
+ 
 
 #### on_merge_to_main.yml
 This workflow will automatically create a tag, a release version, release notes based on pull request labels, access the release-drafter.yml template, perform validation and checks and finally release to production. 
