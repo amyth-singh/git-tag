@@ -1,4 +1,4 @@
-### This repository contains three key files :
+### Three main components of the solution :
 - release-drafter.yml ------------ >(template)
 - deploy-branch-release.yml ------->(workflow)
 - on_merge_to_main.yml ------------>(workflow)
