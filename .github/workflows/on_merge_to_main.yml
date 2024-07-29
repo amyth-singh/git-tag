@@ -1,4 +1,5 @@
 name: on_merge_to_main
+
 on:
   pull_request:
     types:
@@ -16,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       release_type: ${{ steps.get_merge_info.outputs.release_type }}
-      version: ${{ steps.get_merge_info.outputs.version }}
+      version: ${{ steps.calc_version.outputs.new_version }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
@@ -27,6 +28,7 @@ jobs:
       run: |
         git fetch --tags
         git fetch --all
+
     - name: Get merge source branch and determine release type
       id: get_merge_info
       run: |
@@ -43,12 +45,35 @@ jobs:
           release_type="patch"
         fi
         
-        version=$(echo $source_branch | grep -oP 'v\K[0-9]+\.[0-9]+\.[0-9]+' || echo "")
-        
         echo "release_type=${release_type}" >> $GITHUB_OUTPUT
-        echo "version=${version}" >> $GITHUB_OUTPUT
         echo "Release type determined: ${release_type}"
-        echo "Version from branch: ${version}"
+
+    - name: Get current version
+      id: get_version
+      run: |
+        current_version=$(git tag -l --sort=-v:refname "v[0-9]*.[0-9]*.[0-9]*" | head -n 1)
+        if [ -z "$current_version" ]; then
+          current_version="v0.0.0"
+        fi
+        echo "Current version: $current_version"
+        echo "current_version=$current_version" >> $GITHUB_OUTPUT
+
+    - name: Calculate new version
+      id: calc_version
+      run: |
+        current_version=${{ steps.get_version.outputs.current_version }}
+        release_type=${{ steps.get_merge_info.outputs.release_type }}
+        IFS='.' read -ra version_parts <<< "${current_version#v}"
+        major=${version_parts[0]}
+        minor=${version_parts[1]}
+        patch=${version_parts[2]}
+        case $release_type in
+          major) new_version="$((major + 1)).0.0" ;;
+          minor) new_version="${major}.$((minor + 1)).0" ;;
+          patch|hotfix) new_version="${major}.${minor}.$((patch + 1))" ;;
+        esac
+        echo "New version: v$new_version"
+        echo "new_version=v$new_version" >> $GITHUB_OUTPUT
 
   create_and_push_tag:
     needs: process_merge
@@ -64,13 +89,7 @@ jobs:
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
     - name: Create and push tag
       run: |
-        version="${{ needs.process_merge.outputs.version }}"
-        if [ -z "$version" ]; then
-          echo "No version specified in the branch name. Skipping tag creation."
-          exit 0
-        fi
-        
-        new_tag="v${version}"
+        new_tag="${{ needs.process_merge.outputs.version }}"
         if git rev-parse "$new_tag" >/dev/null 2>&1; then
           echo "Tag $new_tag already exists. Skipping tag creation."
           exit 0
@@ -91,8 +110,8 @@ jobs:
       with:
         config-name: release-drafter.yml
         version: ${{ needs.process_merge.outputs.version }}
-        tag: v${{ needs.process_merge.outputs.version }}
-        name: Release v${{ needs.process_merge.outputs.version }}
+        tag: ${{ needs.process_merge.outputs.version }}
+        name: Release ${{ needs.process_merge.outputs.version }}
         publish: true
 
   push_changes:
