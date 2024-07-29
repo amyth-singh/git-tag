@@ -82,7 +82,7 @@ jobs:
           release_type=${{ github.event.inputs.release_type }}
           new_version="${{ steps.calc_version.outputs.new_version }}"
           if [[ "$release_type" == "hotfix" ]]; then
-            new_branch="main-hotfix-${new_version}"
+            new_branch="hotfix-${new_version}"
           else
             new_branch="release-${release_type}-${new_version}"
           fi
