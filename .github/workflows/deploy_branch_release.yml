@@ -116,33 +116,35 @@ jobs:
           new_branch="${{ steps.branch_name.outputs.new_branch }}"
           echo "Error: Branch $new_branch already exists"
           exit 1
-      - name: Create PR to merge with main
+      - name: Create Pull Requests
         if: steps.check_branch.outputs.branch_exists == 'false'
         run: |
-          pr_body="This PR merges the ${{ steps.branch_name.outputs.new_branch }} branch into main."
-          pr_title="Merge ${{ steps.branch_name.outputs.new_branch }} into main"
+          new_branch="${{ steps.branch_name.outputs.new_branch }}"
+          
+          # Create PR to merge with main
+          pr_body_main="This PR merges the $new_branch branch into main."
+          pr_title_main="Merge $new_branch into main"
           curl -X POST \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/${{ github.repository }}/pulls \
             -d '{
-              "title":"'"${pr_title}"'",
-              "body":"'"${pr_body}"'",
-              "head":"${{ steps.branch_name.outputs.new_branch }}",
+              "title":"'"${pr_title_main}"'",
+              "body":"'"${pr_body_main}"'",
+              "head":"'"${new_branch}"'",
               "base":"main"
             }'
-      - name: Create PR to merge with develop
-        if: steps.check_branch.outputs.branch_exists == 'false' && github.event.inputs.release_type != 'hotfix'
-        run: |
-          pr_body="This PR merges the ${{ steps.branch_name.outputs.new_branch }} branch into develop."
-          pr_title="Merge ${{ steps.branch_name.outputs.new_branch }} into develop"
+          
+          # Create PR to merge with develop
+          pr_body_develop="This PR merges the $new_branch branch into develop."
+          pr_title_develop="Merge $new_branch into develop"
           curl -X POST \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/${{ github.repository }}/pulls \
             -d '{
-              "title":"'"${pr_title}"'",
-              "body":"'"${pr_body}"'",
-              "head":"${{ steps.branch_name.outputs.new_branch }}",
+              "title":"'"${pr_title_develop}"'",
+              "body":"'"${pr_body_develop}"'",
+              "head":"'"${new_branch}"'",
               "base":"develop"
             }'
