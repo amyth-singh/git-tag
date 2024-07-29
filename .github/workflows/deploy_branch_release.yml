@@ -28,52 +28,22 @@ jobs:
             echo "base_branch=develop" >> $GITHUB_OUTPUT
           fi
 
-  checkout_and_switch_branch:
+  calculate_version:
+    runs-on: ubuntu-latest
     needs: determine_base_branch
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          repository: amyth-singh/git-tag
-          ssh-strict: true
-          persist-credentials: true
-          clean: true
-          sparse-checkout-cone-mode: true
-          fetch-tags: false
-          lfs: false
-          submodules: false
-          set-safe-directory: true
-      - name: Switch to base branch
-        run: |
-          git fetch origin
-          git checkout ${{ needs.determine_base_branch.outputs.base_branch }}
-          git pull origin ${{ needs.determine_base_branch.outputs.base_branch }}
-      - name: Display base branch information
-        run: |
-          echo "Creating ${{ github.event.inputs.release_type }} release branch from ${{ needs.determine_base_branch.outputs.base_branch }} branch"
-
-  get_current_version:
-    runs-on: ubuntu-latest
     outputs:
-      current_version: ${{ steps.get_version.outputs.current_version }}
+      new_version: ${{ steps.calc_version.outputs.new_version }}
+      new_branch: ${{ steps.branch_name.outputs.new_branch }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-          repository: amyth-singh/git-tag
-          ssh-strict: true
-          persist-credentials: true
-          clean: true
-          sparse-checkout-cone-mode: true
-          fetch-tags: false
-          lfs: false
-          submodules: false
-          set-safe-directory: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
       - name: Fetch all tags
         run: git fetch --tags
+        
       - name: Get current version
         id: get_version
         run: |
@@ -84,16 +54,10 @@ jobs:
           echo "Current version: $current_version"
           echo "current_version=$current_version" >> $GITHUB_OUTPUT
 
-  calculate_new_version:
-    needs: get_current_version
-    runs-on: ubuntu-latest
-    outputs:
-      new_version: ${{ steps.calc_version.outputs.new_version }}
-    steps:
       - name: Calculate new version
         id: calc_version
         run: |
-          current_version=${{ needs.get_current_version.outputs.current_version }}
+          current_version=${{ steps.get_version.outputs.current_version }}
           release_type=${{ github.event.inputs.release_type }}
           
           IFS='.' read -ra version_parts <<< "${current_version#v}"
@@ -116,41 +80,44 @@ jobs:
           echo "New version: v$new_version"
           echo "new_version=v$new_version" >> $GITHUB_OUTPUT
 
-  create_branch:
-    needs: [determine_base_branch, calculate_new_version]
+      - name: Determine new branch name
+        id: branch_name
+        run: |
+          release_type=${{ github.event.inputs.release_type }}
+          new_version="${{ steps.calc_version.outputs.new_version }}"
+          if [[ "$release_type" == "hotfix" ]]; then
+            new_branch="main-hotfix-${new_version}"
+          else
+            new_branch="release-${release_type}-${new_version}"
+          fi
+          echo "new_branch=$new_branch" >> $GITHUB_OUTPUT
+
+  create_release_branch:
     runs-on: ubuntu-latest
-    outputs:
-      new_branch: ${{ steps.branch_name.outputs.new_branch }}
-      branch_exists: ${{ steps.check_branch.outputs.branch_exists }}
+    needs: [determine_base_branch, calculate_version]
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-          repository: amyth-singh/git-tag
-          ssh-strict: true
-          persist-credentials: true
-          clean: true
-          sparse-checkout-cone-mode: true
-          fetch-tags: false
-          lfs: false
-          submodules: false
-          set-safe-directory: true
-      - name: Determine new branch name
-        id: branch_name
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Switch to base branch
         run: |
-          release_type=${{ github.event.inputs.release_type }}
-          new_version="${{ needs.calculate_new_version.outputs.new_version }}"
-          if [[ "$release_type" == "hotfix" ]]; then
-            new_branch="hotfix-${new_version}"
-          else
-            new_branch="release-${release_type}-${new_version}"
-          fi
-          echo "new_branch=$new_branch" >> $GITHUB_OUTPUT
+          git fetch origin
+          git checkout ${{ needs.determine_base_branch.outputs.base_branch }}
+          git pull origin ${{ needs.determine_base_branch.outputs.base_branch }}
+
+      - name: Display base branch information
+        run: |
+          echo "Creating ${{ github.event.inputs.release_type }} release branch from ${{ needs.determine_base_branch.outputs.base_branch }} branch"
+
       - name: Check if branch exists
         id: check_branch
         run: |
-          new_branch="${{ steps.branch_name.outputs.new_branch }}"
+          new_branch="${{ needs.calculate_version.outputs.new_branch }}"
           if git ls-remote --exit-code --heads origin $new_branch; then
             echo "Branch $new_branch already exists"
             echo "branch_exists=true" >> $GITHUB_OUTPUT
@@ -158,57 +125,22 @@ jobs:
             echo "Branch $new_branch does not exist"
             echo "branch_exists=false" >> $GITHUB_OUTPUT
           fi
+
       - name: Create and push release branch
         if: steps.check_branch.outputs.branch_exists == 'false'
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          new_branch="${{ steps.branch_name.outputs.new_branch }}"
+          new_branch="${{ needs.calculate_version.outputs.new_branch }}"
           git checkout -b $new_branch
-          git push origin $new_branch
+          git push -u origin $new_branch
           echo "Created and pushed new branch: $new_branch based on ${{ needs.determine_base_branch.outputs.base_branch }} branch"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Error if branch exists
         if: steps.check_branch.outputs.branch_exists == 'true'
         run: |
-          new_branch="${{ steps.branch_name.outputs.new_branch }}"
+          new_branch="${{ needs.calculate_version.outputs.new_branch }}"
           echo "Error: Branch $new_branch already exists"
           exit 1
-
-  create_pull_requests:
-    needs: [create_branch]
-    if: needs.create_branch.outputs.branch_exists == 'false'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Create Pull Requests
-        run: |
-          new_branch="${{ needs.create_branch.outputs.new_branch }}"
-          
-          # Create PR to merge with main
-          pr_body_main="This PR merges the $new_branch branch into main."
-          pr_title_main="Merge $new_branch into main"
-          curl -X POST \
-            -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/${{ github.repository }}/pulls \
-            -d '{
-              "title":"'"${pr_title_main}"'",
-              "body":"'"${pr_body_main}"'",
-              "head":"'"${new_branch}"'",
-              "base":"main"
-            }'
-          
-          # Create PR to merge with develop
-          pr_body_develop="This PR merges the $new_branch branch into develop."
-          pr_title_develop="Merge $new_branch into develop"
-          curl -X POST \
-            -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/${{ github.repository }}/pulls \
-            -d '{
-              "title":"'"${pr_title_develop}"'",
-              "body":"'"${pr_body_develop}"'",
-              "head":"'"${new_branch}"'",
-              "base":"develop"
-            }'
