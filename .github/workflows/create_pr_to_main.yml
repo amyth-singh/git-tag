@@ -1,0 +1,31 @@
+name: create_pr_to_main
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-pr-to-main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Create new branch
+        run: |
+          git checkout -b automated-pr-branch
+          echo "# Automated changes" >> README.md
+          git add README.md
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git commit -m "Automated changes"
+          git push origin automated-pr-branch
+
+      - name: Create Pull Request to Main
+        uses: peter-evans/create-pull-request@v5
+        with:
+          title: Automated Pull Request to Main
+          body: This is an automated pull request created by GitHub Actions to merge changes into the main branch.
+          branch: automated-pr-branch
+          base: main
