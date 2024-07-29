@@ -122,7 +122,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           base: main
-          head: ${{ steps.branch_name.outputs.new_branch }}
+          branch: ${{ steps.branch_name.outputs.new_branch }}
           title: "Merge ${{ steps.branch_name.outputs.new_branch }} into main"
           body: "This PR merges the ${{ steps.branch_name.outputs.new_branch }} branch into main."
       - name: Create PR to merge with develop
@@ -131,6 +131,6 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           base: develop
-          head: ${{ steps.branch_name.outputs.new_branch }}
+          branch: ${{ steps.branch_name.outputs.new_branch }}
           title: "Merge ${{ steps.branch_name.outputs.new_branch }} into develop"
           body: "This PR merges the ${{ steps.branch_name.outputs.new_branch }} branch into develop."
