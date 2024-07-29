@@ -12,12 +12,12 @@ on:
         - patch
         - hotfix
         default: 'patch'
+
 jobs:
-  create_release_branch:
+  determine_base_branch:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
+    outputs:
+      base_branch: ${{ steps.base_branch.outputs.base_branch }}
     steps:
       - name: Determine base branch
         id: base_branch
@@ -27,6 +27,11 @@ jobs:
           else
             echo "base_branch=develop" >> $GITHUB_OUTPUT
           fi
+
+  checkout_and_switch_branch:
+    needs: determine_base_branch
+    runs-on: ubuntu-latest
+    steps:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
@@ -35,14 +40,23 @@ jobs:
       - name: Switch to base branch
         run: |
           git fetch origin
-          git checkout ${{ steps.base_branch.outputs.base_branch }}
-          git pull origin ${{ steps.base_branch.outputs.base_branch }}
+          git checkout ${{ needs.determine_base_branch.outputs.base_branch }}
+          git pull origin ${{ needs.determine_base_branch.outputs.base_branch }}
       - name: Display base branch information
         run: |
-          echo "Creating ${{ github.event.inputs.release_type }} release branch from ${{ steps.base_branch.outputs.base_branch }} branch"
+          echo "Creating ${{ github.event.inputs.release_type }} release branch from ${{ needs.determine_base_branch.outputs.base_branch }} branch"
+
+  get_current_version:
+    runs-on: ubuntu-latest
+    outputs:
+      current_version: ${{ steps.get_version.outputs.current_version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - name: Fetch all tags
         run: git fetch --tags
-        
       - name: Get current version
         id: get_version
         run: |
@@ -52,10 +66,17 @@ jobs:
           fi
           echo "Current version: $current_version"
           echo "current_version=$current_version" >> $GITHUB_OUTPUT
+
+  calculate_new_version:
+    needs: get_current_version
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.calc_version.outputs.new_version }}
+    steps:
       - name: Calculate new version
         id: calc_version
         run: |
-          current_version=${{ steps.get_version.outputs.current_version }}
+          current_version=${{ needs.get_current_version.outputs.current_version }}
           release_type=${{ github.event.inputs.release_type }}
           
           IFS='.' read -ra version_parts <<< "${current_version#v}"
@@ -77,11 +98,24 @@ jobs:
           
           echo "New version: v$new_version"
           echo "new_version=v$new_version" >> $GITHUB_OUTPUT
+
+  create_branch:
+    needs: [determine_base_branch, calculate_new_version]
+    runs-on: ubuntu-latest
+    outputs:
+      new_branch: ${{ steps.branch_name.outputs.new_branch }}
+      branch_exists: ${{ steps.check_branch.outputs.branch_exists }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Determine new branch name
         id: branch_name
         run: |
           release_type=${{ github.event.inputs.release_type }}
-          new_version="${{ steps.calc_version.outputs.new_version }}"
+          new_version="${{ needs.calculate_new_version.outputs.new_version }}"
           if [[ "$release_type" == "hotfix" ]]; then
             new_branch="hotfix-${new_version}"
           else
@@ -107,7 +141,7 @@ jobs:
           new_branch="${{ steps.branch_name.outputs.new_branch }}"
           git checkout -b $new_branch
           git push -u origin $new_branch
-          echo "Created and pushed new branch: $new_branch based on ${{ steps.base_branch.outputs.base_branch }} branch"
+          echo "Created and pushed new branch: $new_branch based on ${{ needs.determine_base_branch.outputs.base_branch }} branch"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Error if branch exists
@@ -116,10 +150,15 @@ jobs:
           new_branch="${{ steps.branch_name.outputs.new_branch }}"
           echo "Error: Branch $new_branch already exists"
           exit 1
+
+  create_pull_requests:
+    needs: [create_branch]
+    if: needs.create_branch.outputs.branch_exists == 'false'
+    runs-on: ubuntu-latest
+    steps:
       - name: Create Pull Requests
-        if: steps.check_branch.outputs.branch_exists == 'false'
         run: |
-          new_branch="${{ steps.branch_name.outputs.new_branch }}"
+          new_branch="${{ needs.create_branch.outputs.new_branch }}"
           
           # Create PR to merge with main
           pr_body_main="This PR merges the $new_branch branch into main."
