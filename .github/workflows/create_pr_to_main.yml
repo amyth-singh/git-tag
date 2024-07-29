@@ -1,4 +1,4 @@
-name: create_pr_to_main
+name: Create Pull Request to Main
 
 on:
   workflow_dispatch:
@@ -9,28 +9,42 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
+
+      - name: Create PR
+        uses: actions/github-script@v6
         with:
-          fetch-depth: 0
-          token: ${{ secrets.PAT }}
-
-      - name: Configure Git
-        run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-
-      - name: Create new branch and push changes
-        run: |
-          git checkout -b automated-pr-branch
-          echo "# Automated changes" >> README.md
-          git add README.md
-          git commit -m "Automated changes"
-          git push origin automated-pr-branch
-
-      - name: Create Pull Request to Main
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.PAT }}
-          title: Automated Pull Request to Main
-          body: This is an automated pull request created by GitHub Actions to merge changes into the main branch.
-          branch: automated-pr-branch
-          base: main
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const fs = require('fs');
+            
+            // Create a new branch
+            await github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'refs/heads/automated-pr-branch',
+              sha: context.sha
+            });
+            
+            // Read the content of README.md
+            let content = fs.readFileSync('README.md', 'utf8');
+            content += '\n# Automated changes\n';
+            
+            // Update the file in the new branch
+            await github.rest.repos.createOrUpdateFileContents({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              path: 'README.md',
+              message: 'Automated changes',
+              content: Buffer.from(content).toString('base64'),
+              branch: 'automated-pr-branch'
+            });
+            
+            // Create a pull request
+            await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Automated Pull Request to Main',
+              head: 'automated-pr-branch',
+              base: 'main',
+              body: 'This is an automated pull request created by GitHub Actions to merge changes into the main branch.'
+            });
