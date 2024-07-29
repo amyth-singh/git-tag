@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - name: Determine base branch
         id: base_branch
@@ -115,3 +116,21 @@ jobs:
           new_branch="${{ steps.branch_name.outputs.new_branch }}"
           echo "Error: Branch $new_branch already exists"
           exit 1
+      - name: Create PR to merge with main
+        if: steps.check_branch.outputs.branch_exists == 'false'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: main
+          head: ${{ steps.branch_name.outputs.new_branch }}
+          title: "Merge ${{ steps.branch_name.outputs.new_branch }} into main"
+          body: "This PR merges the ${{ steps.branch_name.outputs.new_branch }} branch into main."
+      - name: Create PR to merge with develop
+        if: steps.check_branch.outputs.branch_exists == 'false' && github.event.inputs.release_type != 'hotfix'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: develop
+          head: ${{ steps.branch_name.outputs.new_branch }}
+          title: "Merge ${{ steps.branch_name.outputs.new_branch }} into develop"
+          body: "This PR merges the ${{ steps.branch_name.outputs.new_branch }} branch into develop."
