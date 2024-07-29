@@ -36,7 +36,15 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: amyth-singh/git-tag
+          ssh-strict: true
+          persist-credentials: true
+          clean: true
+          sparse-checkout-cone-mode: true
+          fetch-tags: false
+          lfs: false
+          submodules: false
+          set-safe-directory: true
       - name: Switch to base branch
         run: |
           git fetch origin
@@ -55,6 +63,15 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          repository: amyth-singh/git-tag
+          ssh-strict: true
+          persist-credentials: true
+          clean: true
+          sparse-checkout-cone-mode: true
+          fetch-tags: false
+          lfs: false
+          submodules: false
+          set-safe-directory: true
       - name: Fetch all tags
         run: git fetch --tags
       - name: Get current version
@@ -110,7 +127,15 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: amyth-singh/git-tag
+          ssh-strict: true
+          persist-credentials: true
+          clean: true
+          sparse-checkout-cone-mode: true
+          fetch-tags: false
+          lfs: false
+          submodules: false
+          set-safe-directory: true
       - name: Determine new branch name
         id: branch_name
         run: |
@@ -140,8 +165,10 @@ jobs:
           git config user.email github-actions@github.com
           new_branch="${{ steps.branch_name.outputs.new_branch }}"
           git checkout -b $new_branch
-          git push https://${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git HEAD:$new_branch
+          git push origin $new_branch
           echo "Created and pushed new branch: $new_branch based on ${{ needs.determine_base_branch.outputs.base_branch }} branch"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Error if branch exists
         if: steps.check_branch.outputs.branch_exists == 'true'
         run: |
@@ -162,7 +189,7 @@ jobs:
           pr_body_main="This PR merges the $new_branch branch into main."
           pr_title_main="Merge $new_branch into main"
           curl -X POST \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/${{ github.repository }}/pulls \
             -d '{
@@ -176,7 +203,7 @@ jobs:
           pr_body_develop="This PR merges the $new_branch branch into develop."
           pr_title_develop="Merge $new_branch into develop"
           curl -X POST \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/${{ github.repository }}/pulls \
             -d '{
