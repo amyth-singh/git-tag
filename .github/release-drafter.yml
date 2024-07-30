@@ -34,6 +34,6 @@ template: |
   ## What's Changed
   $CHANGES
   
-  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/commits/$TAG_NAME
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/commits/v$RESOLVED_VERSION
 exclude-labels:
   - 'skip-changelog'
