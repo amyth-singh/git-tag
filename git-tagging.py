@@ -1,2 +1,2 @@
 def main ():
-    return print("on_merge_to_main_tester")
+    return print("on_merge")
