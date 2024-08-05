@@ -1,2 +1,2 @@
 def main ():
-    return print("made patch fix")
+    return print("on_merge")
