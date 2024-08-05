@@ -5,7 +5,7 @@ on:
     types:
       - closed
     branches:
-      - main
+      - main_test
 permissions:
   contents: write
   packages: read
