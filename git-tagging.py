@@ -1,2 +1,2 @@
 def main ():
-    return print("on_merge")
+    return print("release-patch-v1.0.1")
