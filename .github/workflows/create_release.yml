@@ -1,8 +1,6 @@
 name: create_release
-
 on:
   workflow_dispatch:
-
 permissions:
   contents: write
   packages: read
@@ -15,16 +13,13 @@ jobs:
     outputs:
       version: ${{ steps.calc_version.outputs.new_version }}
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
-    
     - name: Fetch all tags and branches
       run: |
         git fetch --tags
         git fetch --all
-
     - name: Get current version
       id: get_version
       run: |
@@ -34,7 +29,6 @@ jobs:
         fi
         echo "Current version: $current_version"
         echo "current_version=$current_version" >> $GITHUB_OUTPUT
-
     - name: Calculate new version
       id: calc_version
       run: |
@@ -48,22 +42,20 @@ jobs:
         echo "new_version=v$new_version" >> $GITHUB_OUTPUT
 
   push_changes:
-    needs: [create_and_push_tag, generate_release_notes]
+    needs: process_release
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
     - name: Push changes to repository
       run: git push origin develop
 
   create_and_push_tag:
-    needs: process_release
+    needs: [process_release, push_changes]
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
     - name: Set up Git
@@ -83,11 +75,10 @@ jobs:
         fi
 
   generate_release_notes:
-    needs: process_release
+    needs: [process_release, push_changes]
     runs-on: ubuntu-latest
     steps:
-    - name: Generate release notes and create release
-      uses: release-drafter/release-drafter@v5
+    - uses: release-drafter/release-drafter@v5
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
