@@ -55,7 +55,7 @@ jobs:
       with:
         fetch-depth: 0
     - name: Push changes to repository
-      run: git push origin develop
+      run: git push origin main_test
 
   create_and_push_tag:
     needs: [process_release, push_changes]
