@@ -1,4 +1,4 @@
-name: tag
+name: Create Production Tag
 
 on:
   workflow_dispatch:
@@ -6,6 +6,8 @@ on:
 jobs:
   create_tag:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -17,4 +19,6 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           git tag -a production-v3.0.16 -m "Production release v3.0.16"
-          git push https://${{ secrets.PAT }}@github.com/${{ github.repository }}.git production-v3.0.16
+          git push origin production-v3.0.16
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
