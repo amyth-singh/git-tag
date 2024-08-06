@@ -41,49 +41,49 @@ jobs:
         echo "New version: production-v$new_version"
         echo "new_version=production-v$new_version" >> $GITHUB_OUTPUT
 
-  push_changes:
-    needs: process_release
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-    - name: Push changes to repository
-      run: git push origin develop
+  # push_changes:
+  #   needs: process_release
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - uses: actions/checkout@v3
+  #     with:
+  #       fetch-depth: 0
+  #   - name: Push changes to repository
+  #     run: git push origin develop
 
-  create_and_push_tag:
-    needs: [process_release, push_changes]
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-    - name: Set up Git
-      run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-    - name: Create and push tag
-      run: |
-        new_tag="${{ needs.process_release.outputs.version }}"
-        if git rev-parse "$new_tag" >/dev/null 2>&1; then
-          echo "Tag $new_tag already exists. Skipping tag creation."
-          exit 0
-        else
-          git tag -a "$new_tag" -m "Release $new_tag"
-          git push origin "$new_tag"
-          echo "Created and pushed tag $new_tag"
-        fi
+  # create_and_push_tag:
+  #   needs: [process_release, push_changes]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - uses: actions/checkout@v3
+  #     with:
+  #       fetch-depth: 0
+  #   - name: Set up Git
+  #     run: |
+  #       git config --global user.name "github-actions[bot]"
+  #       git config --global user.email "github-actions[bot]@users.noreply.github.com"
+  #   - name: Create and push tag
+  #     run: |
+  #       new_tag="${{ needs.process_release.outputs.version }}"
+  #       if git rev-parse "$new_tag" >/dev/null 2>&1; then
+  #         echo "Tag $new_tag already exists. Skipping tag creation."
+  #         exit 0
+  #       else
+  #         git tag -a "$new_tag" -m "Release $new_tag"
+  #         git push origin "$new_tag"
+  #         echo "Created and pushed tag $new_tag"
+  #       fi
 
-  generate_release_notes:
-    needs: [process_release, push_changes]
-    runs-on: ubuntu-latest
-    steps:
-    - uses: release-drafter/release-drafter@v5
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        config-name: release-drafter.yml
-        version: ${{ needs.process_release.outputs.version }}
-        tag: ${{ needs.process_release.outputs.version }}
-        name: Release ${{ needs.process_release.outputs.version }}
-        publish: true
+  # generate_release_notes:
+  #   needs: [process_release, push_changes]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - uses: release-drafter/release-drafter@v5
+  #     env:
+  #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #     with:
+  #       config-name: release-drafter.yml
+  #       version: ${{ needs.process_release.outputs.version }}
+  #       tag: ${{ needs.process_release.outputs.version }}
+  #       name: Release ${{ needs.process_release.outputs.version }}
+  #       publish: true
