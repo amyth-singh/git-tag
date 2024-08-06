@@ -6,11 +6,13 @@ on:
       - closed
     branches:
       - main_test
+
 permissions:
   contents: write
   packages: read
   actions: read
   id-token: write
+
 jobs:
   process_merge:
     if: github.event.pull_request.merged == true && (contains(github.event.pull_request.head.ref, 'major') || contains(github.event.pull_request.head.ref, 'minor') || contains(github.event.pull_request.head.ref, 'patch') || contains(github.event.pull_request.head.ref, 'hotfix'))
