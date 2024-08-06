@@ -95,4 +95,4 @@ jobs:
       with:
         fetch-depth: 0
     - name: Push changes to repository
-      run: git push origin main_test
+      run: git push origin develop
