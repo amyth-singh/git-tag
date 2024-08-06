@@ -1,4 +1,4 @@
-name: Create Production Tag
+name: tag
 
 on:
   workflow_dispatch:
