@@ -74,8 +74,8 @@ jobs:
           minor) new_version="${major}.$((minor + 1)).0" ;;
           patch|hotfix) new_version="${major}.${minor}.$((patch + 1))" ;;
         esac
-        echo "New version: v$new_version"
-        echo "new_version=v$new_version" >> $GITHUB_OUTPUT
+        echo "New version: $new_version"
+        echo "new_version=$new_version" >> $GITHUB_OUTPUT
 
   push_changes:
     needs: process_merge
