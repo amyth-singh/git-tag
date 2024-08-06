@@ -111,42 +111,43 @@ jobs:
         fi
 
   generate_release_notes:
-     needs: [process_merge, push_changes, create_and_push_tag]
-     runs-on: ubuntu-latest
-     steps:
-     - name: Checkout code
-       uses: actions/checkout@v3
-       with:
-         fetch-depth: 0
-     - name: Generate release notes
-       id: generate_release_notes
-       uses: mikepenz/release-changelog-builder-action@v3
-       env:
-         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-       with:
-         configuration: |
-           categorize:
-             - title: 🚀 Features
-               labels:
-                 - feature-new
-                 - feature-enhancement
-             - title: 🐛 Fixes
-               labels:
-                 - bug
-             - title: 🔥 Hotfixes
-               labels:
-                 - hotfix
-           template: |
-             ## What's Changed
-             ${{changes}}
-             **Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ needs.process_merge.outputs.version }}
-     - name: Create Release
-       uses: actions/create-release@v1
-       env:
-         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-       with:
-         tag_name: ${{ needs.process_merge.outputs.version }}
-         release_name: ${{ needs.process_merge.outputs.version }}
-         body: ${{ steps.generate_release_notes.outputs.changelog }}
-         draft: false
-         prerelease: false
+    needs: [push_changes, create_and_push_tag]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Generate release notes
+      id: generate_release_notes
+      uses: mikepenz/release-changelog-builder-action@v3
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        configuration: |
+          categories:
+            - title: 🚀 Features
+              labels:
+                - feature-new
+                - feature-enhancement
+            - title: 🐛 Fixes
+              labels:
+                - bug
+            - title: 🔥 Hotfixes
+              labels:
+                - hotfix
+          template: |
+            ## What's Changed
+            ${{CHANGELOG}}
+            
+            **Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ needs.process_merge.outputs.version }}
+    - name: Create Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ needs.process_merge.outputs.version }}
+        release_name: Release ${{ needs.process_merge.outputs.version }}
+        body: ${{ steps.generate_release_notes.outputs.changelog }}
+        draft: false
+        prerelease: false
