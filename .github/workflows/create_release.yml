@@ -69,7 +69,7 @@ jobs:
           echo "Tag $new_tag already exists. Skipping tag creation."
           exit 0
         else
-          git tag -a "$new_tag" -m "production-$new_tag"
+          git tag -a "$new_tag" -m "$new_tag"
           git push origin "$new_tag"
           echo "Created and pushed tag $new_tag"
         fi
