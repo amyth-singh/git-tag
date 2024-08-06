@@ -114,13 +114,40 @@ jobs:
     needs: [process_merge, push_changes]
     runs-on: ubuntu-latest
     steps:
-    - name: Generate release notes and create release
-      uses: release-drafter/release-drafter@v5
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        config-name: release-drafter.yml
-        version: ${{ needs.process_merge.outputs.version }}
-        tag: ${{ needs.process_merge.outputs.version }}
-        name: ${{ needs.process_merge.outputs.version }}
-        publish: true
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+  
+      - name: Check if release-drafter.yml exists
+        id: check_file
+        uses: andstor/file-existence-action@v1
+        with:
+          files: ".github/workflows/release-drafter.yml"
+  
+      - name: Generate release notes with custom config
+        if: steps.check_file.outputs.files_exists == 'true'
+        uses: release-drafter/release-drafter@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          config-name: .github/workflows/release-drafter.yml
+          version: ${{ needs.process_merge.outputs.version }}
+          tag: ${{ needs.process_merge.outputs.version }}
+          name: ${{ needs.process_merge.outputs.version }}
+          publish: true
+  
+      - name: Generate release notes with default structure
+        if: steps.check_file.outputs.files_exists == 'false'
+        uses: release-drafter/release-drafter@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          version: ${{ needs.process_merge.outputs.version }}
+          tag: ${{ needs.process_merge.outputs.version }}
+          name: ${{ needs.process_merge.outputs.version }}
+          publish: true
+          template: |
+            ## What's Changed
+            ${{changes}}
+            
+            **Full Changelog**: ${{compare_link}}
