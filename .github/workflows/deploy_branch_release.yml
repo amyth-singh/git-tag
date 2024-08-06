@@ -1,4 +1,5 @@
 name: deploy_branch_release
+
 on:
   workflow_dispatch:
     inputs:
@@ -126,6 +127,12 @@ jobs:
             echo "branch_exists=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Fail if branch exists
+        if: steps.check_branch.outputs.branch_exists == 'true'
+        run: |
+          echo "Error: Branch ${{ needs.calculate_version.outputs.new_branch }} already exists"
+          exit 1
+
       - name: Create and push release branch
         if: steps.check_branch.outputs.branch_exists == 'false'
         run: |
@@ -137,9 +144,3 @@ jobs:
           echo "Created and pushed new branch: $new_branch based on ${{ needs.determine_base_branch.outputs.base_branch }} branch"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Error if branch exists
-        if: steps.check_branch.outputs.branch_exists == 'true'
-        run: |
-          new_branch="${{ needs.calculate_version.outputs.new_branch }}"
-          echo "Error: Branch $new_branch already exists"
