@@ -138,16 +138,14 @@ jobs:
   
       - name: Generate release notes with default structure
         if: steps.check_file.outputs.files_exists == 'false'
-        uses: release-drafter/release-drafter@v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          version: ${{ needs.process_merge.outputs.version }}
-          tag: ${{ needs.process_merge.outputs.version }}
-          name: ${{ needs.process_merge.outputs.version }}
-          publish: true
-          template: |
-            ## What's Changed
-            ${{changes}}
-            
-            **Full Changelog**: ${{compare_link}}
+        run: |
+          gh release create ${{ needs.process_merge.outputs.version }} \
+            --title "${{ needs.process_merge.outputs.version }}" \
+            --generate-notes \
+            --notes "## What's Changed
+  
+            For a full list of changes, please see the [full changelog](https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.sha }}).
+            " \
+            --target ${{ github.sha }}
