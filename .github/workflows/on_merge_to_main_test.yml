@@ -122,5 +122,5 @@ jobs:
         config-name: release-drafter.yml
         version: ${{ needs.process_merge.outputs.version }}
         tag: ${{ needs.process_merge.outputs.version }}
-        name: Release ${{ needs.process_merge.outputs.version }}
+        name: ${{ needs.process_merge.outputs.version }}
         publish: true
