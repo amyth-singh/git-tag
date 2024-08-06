@@ -81,15 +81,14 @@ jobs:
     needs: process_merge
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
     - name: Push changes to repository
       run: git push origin main_test
 
   create_and_push_tag:
-    needs: push_changes
+    needs: [process_merge, push_changes]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -101,7 +100,7 @@ jobs:
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
     - name: Create and push tag
       run: |
-        new_tag="${{ needs.process_merge.outputs.version }}"
+        new_tag="${{ needs.process_release.outputs.version }}"
         if git rev-parse "$new_tag" >/dev/null 2>&1; then
           echo "Tag $new_tag already exists. Skipping tag creation."
           exit 0
