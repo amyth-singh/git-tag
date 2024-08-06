@@ -6,8 +6,6 @@ on:
 jobs:
   create_tag:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -15,10 +13,10 @@ jobs:
           fetch-depth: 0
 
       - name: Create and push tag
-        run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git tag -a production-v3.0.16 -m "Production release v3.0.16"
-          git push origin production-v3.0.16
+        uses: anothrNick/github-tag-action@1.61.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CUSTOM_TAG: production-v3.0.16
+          DEFAULT_BUMP: none
+          TAG_CONTEXT: branch
+          RELEASE_BRANCHES: develop
