@@ -53,9 +53,9 @@ jobs:
     - name: Get current version
       id: get_version
       run: |
-        current_version=$(git tag -l --sort=-v:refname "v[0-9]*.[0-9]*.[0-9]*" | head -n 1)
+        current_version=$(git ls-remote --tags origin | grep -i production | sed 's/.*refs\/tags\/production-v\{0,1\}//g' | sort -V | tail -n 1 | sed 's/^/production-v/' | sed 's/\^{}$//')
         if [ -z "$current_version" ]; then
-          current_version="v0.0.0"
+          current_version="production-v0.0.0"
         fi
         echo "Current version: $current_version"
         echo "current_version=$current_version" >> $GITHUB_OUTPUT
@@ -77,12 +77,22 @@ jobs:
         echo "New version: v$new_version"
         echo "new_version=v$new_version" >> $GITHUB_OUTPUT
 
-  create_and_push_tag:
+  push_changes:
     needs: process_merge
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Push changes to repository
+      run: git push origin main_test
+
+  create_and_push_tag:
+    needs: push_changes
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
     - name: Set up Git
@@ -96,13 +106,13 @@ jobs:
           echo "Tag $new_tag already exists. Skipping tag creation."
           exit 0
         else
-          git tag -a "$new_tag" -m "Release $new_tag"
+          git tag -a "$new_tag" -m "$new_tag"
           git push origin "$new_tag"
           echo "Created and pushed tag $new_tag"
         fi
 
   generate_release_notes:
-    needs: process_merge
+    needs: [push_changes, create_and_push_tag]
     runs-on: ubuntu-latest
     steps:
     - name: Generate release notes and create release
@@ -113,16 +123,5 @@ jobs:
         config-name: release-drafter.yml
         version: ${{ needs.process_merge.outputs.version }}
         tag: ${{ needs.process_merge.outputs.version }}
-        name: Release ${{ needs.process_merge.outputs.version }}
+        name: ${{ needs.process_merge.outputs.version }}
         publish: true
-
-  push_changes:
-    needs: [create_and_push_tag, generate_release_notes]
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-    - name: Push changes to repository
-      run: git push origin main_test
