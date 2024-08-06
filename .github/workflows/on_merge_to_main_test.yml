@@ -100,7 +100,7 @@ jobs:
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
     - name: Create and push tag
       run: |
-        new_tag="${{ needs.process_release.outputs.version }}"
+        new_tag="${{ needs.process_merge.outputs.version }}"
         if git rev-parse "$new_tag" >/dev/null 2>&1; then
           echo "Tag $new_tag already exists. Skipping tag creation."
           exit 0
