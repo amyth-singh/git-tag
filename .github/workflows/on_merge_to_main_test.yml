@@ -1,145 +1,127 @@
-name: deploy_branch_release
+name: on_merge_to_main
+
 on:
-  workflow_dispatch:
-    inputs:
-      release_type:
-        description: 'Release type:'
-        required: true
-        type: choice
-        options:
-        - major
-        - minor
-        - patch
-        - hotfix
-        default: 'patch'
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main_test
+
+permissions:
+  contents: write
+  packages: read
+  actions: read
+  id-token: write
 
 jobs:
-  determine_base_branch:
+  process_merge:
+    if: github.event.pull_request.merged == true && (contains(github.event.pull_request.head.ref, 'major') || contains(github.event.pull_request.head.ref, 'minor') || contains(github.event.pull_request.head.ref, 'patch') || contains(github.event.pull_request.head.ref, 'hotfix'))
     runs-on: ubuntu-latest
     outputs:
-      base_branch: ${{ steps.base_branch.outputs.base_branch }}
+      release_type: ${{ steps.get_merge_info.outputs.release_type }}
+      version: ${{ steps.calc_version.outputs.new_version }}
     steps:
-      - name: Determine base branch
-        id: base_branch
-        run: |
-          if [[ "${{ github.event.inputs.release_type }}" == "hotfix" ]]; then
-            echo "base_branch=main_test" >> $GITHUB_OUTPUT
-          else
-            echo "base_branch=develop" >> $GITHUB_OUTPUT
-          fi
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    
+    - name: Fetch all tags and branches
+      run: |
+        git fetch --tags
+        git fetch --all
 
-  calculate_version:
-    runs-on: ubuntu-latest
-    needs: determine_base_branch
-    outputs:
-      new_version: ${{ steps.calc_version.outputs.new_version }}
-      new_branch: ${{ steps.branch_name.outputs.new_branch }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Fetch all tags
-        run: git fetch --tags
+    - name: Get merge source branch and determine release type
+      id: get_merge_info
+      run: |
+        source_branch="${{ github.event.pull_request.head.ref }}"
+        echo "Source branch: $source_branch"
         
-      - name: Get current version
-        id: get_version
-        run: |
-          current_version=$(git ls-remote --tags origin | grep -i production | sed 's/.*refs\/tags\/production-v\{0,1\}//g' | sort -V | tail -n 1 | sed 's/\^{}$//')
-          if [ -z "$current_version" ]; then
-            current_version="v0.0.0"
-          fi
-          echo "Current version: $current_version"
-          echo "current_version=$current_version" >> $GITHUB_OUTPUT
+        if [[ $source_branch == *major* ]]; then
+          release_type="major"
+        elif [[ $source_branch == *minor* ]]; then
+          release_type="minor"
+        elif [[ $source_branch == *patch* || $source_branch == *hotfix* ]]; then
+          release_type="patch"
+        else
+          release_type="patch"
+        fi
+        
+        echo "release_type=${release_type}" >> $GITHUB_OUTPUT
+        echo "Release type determined: ${release_type}"
 
-      - name: Calculate new version
-        id: calc_version
-        run: |
-          current_version=${{ steps.get_version.outputs.current_version }}
-          release_type=${{ github.event.inputs.release_type }}
-          
-          IFS='.' read -ra version_parts <<< "${current_version#v}"
-          major=${version_parts[0]}
-          minor=${version_parts[1]}
-          patch=${version_parts[2]}
-          
-          case $release_type in
-            major)
-              new_version="$((major + 1)).0.0"
-              ;;
-            minor)
-              new_version="${major}.$((minor + 1)).0"
-              ;;
-            patch|hotfix)
-              new_version="${major}.${minor}.$((patch + 1))"
-              ;;
-          esac
-          
-          echo "New version: v$new_version"
-          echo "new_version=v$new_version" >> $GITHUB_OUTPUT
+    - name: Get current version
+      id: get_version
+      run: |
+        current_version=$(git ls-remote --tags origin | grep -i production | sed 's/.*refs\/tags\/production-v\{0,1\}//g' | sort -V | tail -n 1 | sed 's/^/production-v/' | sed 's/\^{}$//')
+        if [ -z "$current_version" ]; then
+          current_version="production-v0.0.0"
+        fi
+        echo "Current version: $current_version"
+        echo "current_version=$current_version" >> $GITHUB_OUTPUT
 
-      - name: Determine new branch name
-        id: branch_name
-        run: |
-          release_type=${{ github.event.inputs.release_type }}
-          new_version="${{ steps.calc_version.outputs.new_version }}"
-          if [[ "$release_type" == "hotfix" ]]; then
-            new_branch="hotfix-${new_version}"
-          else
-            new_branch="release-${release_type}-${new_version}"
-          fi
-          echo "new_branch=$new_branch" >> $GITHUB_OUTPUT
+    - name: Calculate new version
+      id: calc_version
+      run: |
+        current_version=${{ steps.get_version.outputs.current_version }}
+        release_type=${{ steps.get_merge_info.outputs.release_type }}
+        IFS='.' read -ra version_parts <<< "${current_version#v}"
+        major=${version_parts[0]}
+        minor=${version_parts[1]}
+        patch=${version_parts[2]}
+        case $release_type in
+          major) new_version="$((major + 1)).0.0" ;;
+          minor) new_version="${major}.$((minor + 1)).0" ;;
+          patch|hotfix) new_version="${major}.${minor}.$((patch + 1))" ;;
+        esac
+        echo "New version: v$new_version"
+        echo "new_version=v$new_version" >> $GITHUB_OUTPUT
 
-  create_release_branch:
+  push_changes:
+    needs: process_merge
     runs-on: ubuntu-latest
-    needs: [determine_base_branch, calculate_version]
-    permissions:
-      contents: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Push changes to repository
+      run: git push origin main_test
 
-      - name: Switch to base branch
-        run: |
-          git fetch origin
-          git checkout ${{ needs.determine_base_branch.outputs.base_branch }}
-          git pull origin ${{ needs.determine_base_branch.outputs.base_branch }}
+  create_and_push_tag:
+    needs: push_changes
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Set up Git
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+    - name: Create and push tag
+      run: |
+        new_tag="${{ needs.process_merge.outputs.version }}"
+        if git rev-parse "$new_tag" >/dev/null 2>&1; then
+          echo "Tag $new_tag already exists. Skipping tag creation."
+          exit 0
+        else
+          git tag -a "$new_tag" -m "$new_tag"
+          git push origin "$new_tag"
+          echo "Created and pushed tag $new_tag"
+        fi
 
-      - name: Display base branch information
-        run: |
-          echo "Creating ${{ github.event.inputs.release_type }} release branch from ${{ needs.determine_base_branch.outputs.base_branch }} branch"
-
-      - name: Check if branch exists
-        id: check_branch
-        run: |
-          new_branch="${{ needs.calculate_version.outputs.new_branch }}"
-          if git ls-remote --exit-code --heads origin $new_branch; then
-            echo "Branch $new_branch already exists"
-            echo "branch_exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "Branch $new_branch does not exist"
-            echo "branch_exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Fail if branch exists
-        if: steps.check_branch.outputs.branch_exists == 'true'
-        run: |
-          echo "Error: Branch ${{ needs.calculate_version.outputs.new_branch }} already exists"
-          exit 1
-
-      - name: Create and push release branch
-        if: steps.check_branch.outputs.branch_exists == 'false'
-        run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          new_branch="${{ needs.calculate_version.outputs.new_branch }}"
-          git checkout -b $new_branch
-          git push -u origin $new_branch
-          echo "Created and pushed new branch: $new_branch based on ${{ needs.determine_base_branch.outputs.base_branch }} branch"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  generate_release_notes:
+    needs: [push_changes, create_and_push_tag]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Generate release notes and create release
+      uses: release-drafter/release-drafter@v5
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        config-name: release-drafter.yml
+        version: ${{ needs.process_merge.outputs.version }}
+        tag: ${{ needs.process_merge.outputs.version }}
+        name: ${{ needs.process_merge.outputs.version }}
+        publish: true
