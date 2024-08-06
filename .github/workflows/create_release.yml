@@ -85,5 +85,5 @@ jobs:
         config-name: release-drafter.yml
         version: ${{ needs.process_release.outputs.version }}
         tag: ${{ needs.process_release.outputs.version }}
-        name: Release ${{ needs.process_release.outputs.version }}
+        name: ${{ needs.process_release.outputs.version }}
         publish: true
