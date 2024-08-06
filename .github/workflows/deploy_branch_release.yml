@@ -12,7 +12,7 @@ on:
         - minor
         - patch
         - hotfix
-        default: 'patch'
+        default: 'hotfix'
 
 jobs:
   determine_base_branch:
