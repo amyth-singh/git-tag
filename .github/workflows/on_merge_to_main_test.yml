@@ -143,9 +143,4 @@ jobs:
         run: |
           gh release create ${{ needs.process_merge.outputs.version }} \
             --title "${{ needs.process_merge.outputs.version }}" \
-            --generate-notes \
-            --notes "## What's Changed
-  
-            For a full list of changes, please see the [full changelog](https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.sha }}).
-            " \
-            --target ${{ github.sha }}
+            --generate-notes
