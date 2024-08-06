@@ -111,7 +111,7 @@ jobs:
         fi
 
   generate_release_notes:
-    needs: [push_changes, create_and_push_tag]
+    needs: [process_merge, push_changes, create_and_push_tag]
     runs-on: ubuntu-latest
     steps:
     - name: Generate release notes and create release
