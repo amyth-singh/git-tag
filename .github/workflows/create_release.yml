@@ -23,7 +23,7 @@ jobs:
     - name: Get current version
       id: get_version
       run: |
-        current_version=$(current_version=$(git ls-remote --tags origin | grep -i production | sed 's/.*refs\/tags\/production-v\{0,1\}//g' | sort -V | tail -n 1 | sed 's/^/production-v/' | sed 's/\^{}$//')
+        current_version=$(git ls-remote --tags origin | grep -i production | sed 's/.*refs\/tags\/production-v\{0,1\}//g' | sort -V | tail -n 1 | sed 's/^/production-v/' | sed 's/\^{}$//')
         if [ -z "$current_version" ]; then
           current_version="production-v0.0.0"
         fi
