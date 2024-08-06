@@ -47,6 +47,17 @@ jobs:
         echo "New version: v$new_version"
         echo "new_version=v$new_version" >> $GITHUB_OUTPUT
 
+  push_changes:
+    needs: [create_and_push_tag, generate_release_notes]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Push changes to repository
+      run: git push origin develop
+
   create_and_push_tag:
     needs: process_release
     runs-on: ubuntu-latest
@@ -85,14 +96,3 @@ jobs:
         tag: ${{ needs.process_release.outputs.version }}
         name: Release ${{ needs.process_release.outputs.version }}
         publish: true
-
-  push_changes:
-    needs: [create_and_push_tag, generate_release_notes]
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-    - name: Push changes to repository
-      run: git push origin develop
