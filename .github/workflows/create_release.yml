@@ -1,0 +1,98 @@
+name: create_release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: read
+  actions: read
+  id-token: write
+
+jobs:
+  process_release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.calc_version.outputs.new_version }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    
+    - name: Fetch all tags and branches
+      run: |
+        git fetch --tags
+        git fetch --all
+
+    - name: Get current version
+      id: get_version
+      run: |
+        current_version=$(git tag -l --sort=-v:refname "v[0-9]*.[0-9]*.[0-9]*" | head -n 1)
+        if [ -z "$current_version" ]; then
+          current_version="v0.0.0"
+        fi
+        echo "Current version: $current_version"
+        echo "current_version=$current_version" >> $GITHUB_OUTPUT
+
+    - name: Calculate new version
+      id: calc_version
+      run: |
+        current_version=${{ steps.get_version.outputs.current_version }}
+        IFS='.' read -ra version_parts <<< "${current_version#v}"
+        major=${version_parts[0]}
+        minor=${version_parts[1]}
+        patch=${version_parts[2]}
+        new_version="${major}.${minor}.$((patch + 1))"
+        echo "New version: v$new_version"
+        echo "new_version=v$new_version" >> $GITHUB_OUTPUT
+
+  create_and_push_tag:
+    needs: process_release
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Set up Git
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+    - name: Create and push tag
+      run: |
+        new_tag="${{ needs.process_release.outputs.version }}"
+        if git rev-parse "$new_tag" >/dev/null 2>&1; then
+          echo "Tag $new_tag already exists. Skipping tag creation."
+          exit 0
+        else
+          git tag -a "$new_tag" -m "Release $new_tag"
+          git push origin "$new_tag"
+          echo "Created and pushed tag $new_tag"
+        fi
+
+  generate_release_notes:
+    needs: process_release
+    runs-on: ubuntu-latest
+    steps:
+    - name: Generate release notes and create release
+      uses: release-drafter/release-drafter@v5
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        config-name: release-drafter.yml
+        version: ${{ needs.process_release.outputs.version }}
+        tag: ${{ needs.process_release.outputs.version }}
+        name: Release ${{ needs.process_release.outputs.version }}
+        publish: true
+
+  push_changes:
+    needs: [create_and_push_tag, generate_release_notes]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Push changes to repository
+      run: git push origin main_test
