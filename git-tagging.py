@@ -1,2 +1,2 @@
 def main ():
-    return print("on_merge")
+    return print("version.4.0.0")
